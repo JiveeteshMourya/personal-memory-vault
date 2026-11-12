@@ -1,4 +1,5 @@
 # Project Title
+
 **Personal Memory Vault: A Privacy-Preserving AI Memory Engine for Cross-Application Context Sharing**
 
 ## 1. Project Overview
@@ -91,21 +92,27 @@ AI does not independently decide whether an application should receive sensitive
 The system consists of the following major components:
 
 ### A. Personal Memory Vault
+
 The central storage infrastructure responsible for maintaining user-owned personal information, structured memories, semantic memories, and associated metadata.
 
 ### B. Application Integration Layer
+
 Provides authenticated interfaces through which external applications can submit information and request contextual information.
 
 ### C. Memory Processing Engine
+
 Processes incoming information, extracts useful facts, classifies memories, and organizes them for future retrieval.
 
 ### D. Permission and Policy Engine
+
 Evaluates application identity, requested data categories, access permissions, and intended purpose before allowing information disclosure.
 
 ### E. AI Context Engine
+
 Uses AI and semantic retrieval techniques to identify relevant information and generate purpose-specific context projections.
 
 ### F. Context Gateway
+
 Acts as the communication intermediary between external applications and the Memory Vault. It authenticates requests, routes operations, and returns authorized responses.
 
 ## 7. Privacy and Security

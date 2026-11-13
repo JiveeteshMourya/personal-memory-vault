@@ -25,6 +25,10 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 - [ ] [P01] No full accessibility audit — excludes keyboard and screen-reader users — run `web-design-guidelines` and an a11y review on every page.
 - [ ] [P01] Motion and visual polish — the UI feels unfinished — add a pass after the core features land.
+- [ ] [P01] The Atkinson fonts have no size-matched fallback (next/font has no metrics for them) — a small layout shift while the web font loads — self-host with `next/font/local` and hand-tuned `size-adjust`/`ascent-override` on the fallback.
+- [ ] [P01] `theme-color` follows the OS scheme, not the in-app theme choice — browser chrome can mismatch the page after a manual switch — update the meta tag in `setTheme`.
+- [ ] [P01] The sticky dashboard header can cover a focused element when tabbing back up a long page — keyboard users lose the focus ring — set `scroll-padding-top` on `html` to the header height once pages get long.
+- [ ] [P01] The vault lens tab isn't reflected in the URL — a specific app's view can't be deep-linked — sync it to a search param if the landing page ever needs it.
 
 ## P02 — Database Foundation
 

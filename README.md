@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Memory Vault
 
-## Getting Started
+A privacy-preserving AI memory engine. Connected AI apps write memories to the vault and request
+context from it; the vault shares only what the user has authorized, for the stated purpose. See
+[docs/main-project-objective.md](docs/main-project-objective.md).
 
-First, run the development server:
+## Prerequisites
+
+- [Bun](https://bun.sh) 1.4
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env.local   # then fill in the values
+bun dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command                | What it does                                      |
+| ---------------------- | ------------------------------------------------- |
+| `bun dev`              | Start the dev server (Turbopack)                  |
+| `bun run build`        | Production build                                  |
+| `bun start`            | Serve the production build                        |
+| `bun test`             | Run the local tests (`*.test.ts`, git-ignored)    |
+| `bun run lint`         | ESLint                                            |
+| `bun run typecheck`    | Generate Next.js route types, then `tsc --noEmit` |
+| `bun run format`       | Format with `bun fmt` (settings in `bunfig.toml`) |
+| `bun run format:check` | Check formatting without writing                  |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Health check: `GET /api/v1/health` returns `{ "status": "ok" }`.
 
-## Learn More
+## Working on the project
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Start with [docs/dev-phases/phase-index.md](docs/dev-phases/phase-index.md): the build is split
+  into phases, with a session protocol, conventions and a Decisions Log.
+- Agent and contributor rules are in [AGENTS.md](AGENTS.md).

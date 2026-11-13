@@ -8,7 +8,7 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 ## Cross-cutting
 
-- [ ] [ALL] No CI pipeline — regressions slip in unnoticed — GitHub Actions running lint, typecheck, test and format:check on every PR.
+- [ ] [ALL] No CI pipeline — regressions slip in unnoticed — GitHub Actions running lint, typecheck and format:check on every PR (test files are git-ignored, so tests run locally only).
 - [ ] [ALL] No security headers or CSP — XSS and clickjacking surface — add headers in `next.config.ts` (see `content-security-policy.md` in the bundled docs).
 - [ ] [ALL] No rate limiting on `/api/v1/*` or the auth routes — brute force, scraping and cost abuse — per-key and per-IP limits (e.g. Upstash or Postgres token bucket).
 - [ ] [ALL] Dependency vulnerability checks — vulnerable transitive deps — `bun audit` (or equivalent) in CI, plus Renovate/Dependabot.
@@ -17,6 +17,9 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 ## P00 — Project Foundation
 
 - [ ] [P00] No pre-commit hooks — unformatted or broken commits — lefthook/husky running format and lint on staged files.
+- [ ] [P00] Unhandled-error logs include the error `message` and `stack` — a third-party error message (e.g. a DB error quoting a value) could echo user data into logs — redact messages from known sources or log only `name` plus a fingerprint for them.
+- [ ] [P00] With invalid env, a self-hosted `next start` logs the error but keeps the process alive, answering 500 — a process supervisor won't restart or alert — have P17 rely on the `/api/v1/health` check, or `process.exit(1)` from `register()` on the Node runtime.
+- [ ] [P00] `validation_error` details use `z.flattenError`, which only reports top-level fields — nested request bodies get vague errors — switch to `z.treeifyError` when an endpoint takes nested input.
 
 ## P01 — UI Shell & Design System
 

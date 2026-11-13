@@ -19,10 +19,10 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
   - supabase-js (no ORM)
   - Recommended: ask. Prisma is familiar; Drizzle is lighter and SQL-first.
 - **Driver:** `pg` / `postgres` (postgres.js). The Next server runs on Node unless `bun --bun` is used, so keep the driver Node-compatible.
+- **Dev database:** **decided (user, 2026-11-14):** local Postgres in Docker via `docker-compose.yml` at the repo root (currently an empty placeholder). Hosted Supabase gets added later. Pick a Postgres image that matches Supabase's major version.
 - **Connection strings:**
-  - Supabase pooler (transaction mode, port 6543) for the app.
-  - Direct connection (5432) for migrations.
-- **Dev database:** a Supabase cloud free project, or the Supabase CLI locally (needs Docker).
+  - Local: `DATABASE_URL` and `DIRECT_URL` both point at the compose Postgres.
+  - Hosted Supabase later: the pooler (transaction mode, port 6543) for the app, and the direct connection (5432) for migrations.
 - **Supabase MCP server:** optional, project scope only.
 
 ## Skills / plugins to look for
@@ -32,6 +32,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 
 ## In scope (MVP slice)
 
+- `docker-compose.yml` with the local Postgres service (named volume, healthcheck), plus `.env.local` values pointing at it.
 - `src/lib/db.ts`: one lazily created client, safe across dev hot reloads. Server-only.
 - Schema location and migration commands in `package.json` (e.g. `db:generate`, `db:migrate`, `db:studio`).
 - Env vars `DATABASE_URL` and `DIRECT_URL`, added to the env schema and `.env.example`.
@@ -54,7 +55,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 
 ## Acceptance criteria & verification
 
-- [ ] A migration applies cleanly against the Supabase database.
+- [ ] `docker compose up -d` starts Postgres, and a migration applies cleanly against it.
 - [ ] `GET /api/v1/health` reports `db: "ok"`, and reports `"error"` with a bad URL.
 - [ ] Lint, typecheck, tests and format pass.
 

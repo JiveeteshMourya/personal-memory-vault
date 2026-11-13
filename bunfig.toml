@@ -11,3 +11,6 @@ arrowParens = "avoid"
 # bun fmt also skips everything in .gitignore (node_modules, .next, .env, ...).
 # .claude/skills holds vendored agent skills tracked by skills-lock.json; keep them byte-identical to upstream.
 ignorePatterns = ["*.env", ".env", ".env.*", "public", ".claude/skills"]
+
+[test]
+preload = ["./test/setup.ts"]

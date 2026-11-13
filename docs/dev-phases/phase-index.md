@@ -8,7 +8,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · 🔁 Redone (see [Piv
 
 | #   | Phase                                                                               | Status | Depends on |
 | --- | ----------------------------------------------------------------------------------- | ------ | ---------- |
-| 00  | [Project Foundation](phase-00-project-foundation.md)                                | ⬜     | —          |
+| 00  | [Project Foundation](phase-00-project-foundation.md)                                | ✅     | —          |
 | 01  | [UI Shell & Design System](phase-01-ui-shell-design-system.md)                      | ⬜     | 00         |
 | 02  | [Database Foundation](phase-02-database-foundation.md)                              | ⬜     | 00         |
 | 03  | [User Authentication](phase-03-user-authentication.md)                              | ⬜     | 01, 02     |
@@ -27,7 +27,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · 🔁 Redone (see [Piv
 | 16  | [User Control Center & Data Ownership](phase-16-user-control-center.md)             | ⬜     | 04–07, 10  |
 | 17  | [Deployment](phase-17-deployment.md)                                                | ⬜     | all        |
 
-**Progress:** 0 / 18 done.
+**Progress:** 1 / 18 done.
 
 Other docs in this folder:
 
@@ -90,6 +90,7 @@ The source of truth is the bundled docs in `node_modules/next/dist/docs/`, espec
 | UI components        | `src/components/ui/` (primitives), `src/components/` (shared), `src/app/**/_components/` (route-local) | Server Components by default; add `"use client"` only where interaction needs it.                                                                                                                                               |
 | Shared domain types  | Co-located by default; `src/types/` only for types used across features                                | —                                                                                                                                                                                                                               |
 | Naming               | Files and route segments in kebab-case; React components as PascalCase named exports                   | —                                                                                                                                                                                                                               |
+| Tests                | Co-located `*.test.ts`, run with `bun test`                                                            | Git-ignored (`*.test.*`, `*.spec.*`): tests stay local and are never committed. `bun fmt` skips them too.                                                                                                                       |
 | Formatting           | `bun run format`                                                                                       | Settings come from `bunfig.toml` (double quotes, semicolons, 2 spaces, width 100).                                                                                                                                              |
 | Public API reference | `docs/public-api.md` (created in Phase 07)                                                             | Every phase that adds or changes an `/api/v1` endpoint updates it.                                                                                                                                                              |
 
@@ -110,6 +111,13 @@ Record every library or approach decision here, so later sessions don't ask agai
 | —     | Authentication            | Better Auth                                                                                                                       | User choice                                                                                                                      |
 | —     | API / server structure    | Standard Next.js: DAL + Server Actions + Route Handlers                                                                           | User choice (2026-11-14)                                                                                                         |
 | —     | Agent tooling             | Skills: `vercel-react-best-practices`, `vercel-composition-patterns`, `web-design-guidelines`. MCP: `next-devtools` (`.mcp.json`) | Project scope only; tracked in `skills-lock.json`. `next-dev-loop` was removed because it needs a global `agent-browser` install |
+| 00    | Validation                | zod 4                                                                                                                             | User choice (2026-11-14). For env, Server Action input and route handler input. No official zod skill exists, so none installed  |
+| 00    | Logger                    | Thin `console` wrapper (`src/lib/logger.ts`)                                                                                      | User choice. Swap to pino etc. later behind the same `logger` export                                                             |
+| 00    | Test runner               | `bun test` + `@types/bun`; `test/setup.ts` preload stubs `server-only`                                                            | User choice. Playwright only when a phase needs e2e                                                                              |
+| 00    | Test files in git         | Git-ignored (`*.test.*`, `*.spec.*`); `test/setup.ts` stays tracked because committed `bunfig.toml` preloads it                   | User choice (2026-11-14)                                                                                                         |
+| 00    | Local secrets             | `.env.local` (git-ignored); `.env.example` committed                                                                              | User choice                                                                                                                      |
+| 00    | Env fail-fast             | `src/instrumentation.ts` `register()` imports `env`                                                                               | Validates at server start; dev exits, `next start` refuses to serve                                                              |
+| 02    | Dev database              | Local Postgres in Docker via `docker-compose.yml`; hosted Supabase added later                                                    | User choice (2026-11-14), made early. Phase 02 builds it                                                                         |
 
 ## Pivot Log
 

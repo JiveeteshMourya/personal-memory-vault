@@ -54,7 +54,7 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 ## Contract provided
 
 - `import { env } from "@/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **Every later phase adds its vars to the schema and to `.env.example`.**
-- `import { logger } from "@/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, stack }` only.
+- `import { logger } from "@/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, code?, stack }` only. `code` is kept only when it's a string: a system code or Postgres SQLSTATE, never data.
 - `import { ApiError, errorResponse } from "@/lib/api-errors"`. Every route handler wraps its body in `try { … } catch (e) { return errorResponse(e) }`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
   - `new ApiError(status, code, message, details?)`. Codes are snake_case strings (`unauthorized`, `forbidden`, `not_found`, …).
   - A thrown `ZodError` becomes `400 validation_error` with `details = z.flattenError(error)`. Handlers can `schema.parse(body)` and let it throw.

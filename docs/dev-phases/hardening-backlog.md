@@ -33,8 +33,11 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 ## P02 — Database Foundation
 
 - [ ] [P02] No Supabase Row Level Security — if DB credentials leak, all rows are exposed — enable RLS with deny-all for the anon and authenticated roles, since the app uses a server-side role.
-- [ ] [P02] Connection pooling and timeouts untuned — connection exhaustion under load — tune the pooler mode, pool size and statement timeouts.
+- [ ] [P02] Connection pooling and timeouts untuned — connection exhaustion under load; with postgres.js's default 30s `connect_timeout`, the health check hangs about 30s when the DB host is unreachable (not refused) — tune the pooler mode, pool size, `connect_timeout` and statement timeouts.
 - [ ] [P02] No backup/restore drill — data loss — document and test Supabase backups.
+- [ ] [P02] Drizzle's `DrizzleQueryError` message embeds the SQL and its params, and `errorResponse`'s generic 500 path logs that message — row values (ids, ciphertext, metadata) can land in logs — in `errorResponse`, log a `DrizzleQueryError`'s `.cause` (name + SQLSTATE `code`) instead of the wrapper. Relates to the P00 item on third-party error messages.
+- [ ] [P02] Primary keys use random UUIDv4 (`gen_random_uuid()`) — index fragmentation on large tables (the Supabase skill's `schema-primary-keys` rule) — switch to time-ordered UUIDv7 (native `uuidv7()` on Postgres 18, or generated in the app) if a table grows large.
+- [ ] [P02] The Supabase MCP isn't scoped to a project yet (no hosted project exists) — the agent gets read-only access to the whole Supabase account — append `&project_ref=<ref>` to the URL in `.mcp.json` once the hosted project exists.
 
 ## P03 — User Authentication
 

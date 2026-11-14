@@ -1,0 +1,21 @@
+# Local dev database. Postgres 17 matches the Supabase platform default.
+# Start with `docker compose up -d`; the URLs in .env.example point here.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: memory_vault
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres # dev only; the port is bound to localhost
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d memory_vault"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -1,0 +1,2 @@
+-- Baseline: intentionally empty. It gives drizzle-kit a migration journal, so `bun run db:migrate`
+-- works on a fresh clone before any feature table exists. Each feature phase adds its own migration.

@@ -15,7 +15,8 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
 
 - **Auth library:** Better Auth _(given)_.
 - **Sign-in methods:** email + password (recommended for the MVP) ± Google OAuth _(past)_.
-- **DB adapter:** must match the Phase 02 ORM.
+- **DB adapter:** Better Auth's Drizzle adapter (Phase 02 uses Drizzle). Generate the auth tables into `src/db/schema/auth.ts`, re-export them from the barrel, and apply them with `db:generate` + `db:migrate` (see Phase 02's "How a phase adds a table").
+- **User id type:** Better Auth's default `text` id, or UUIDs. Feature tables' `user_id` columns must match whichever is chosen.
 - **Forms:** Server Actions + `useActionState` (recommended), or react-hook-form.
 
 ## Skills / plugins to look for

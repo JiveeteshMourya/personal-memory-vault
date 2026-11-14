@@ -10,7 +10,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · 🔁 Redone (see [Piv
 | --- | ----------------------------------------------------------------------------------- | ------ | ---------- |
 | 00  | [Project Foundation](phase-00-project-foundation.md)                                | ✅     | —          |
 | 01  | [UI Shell & Design System](phase-01-ui-shell-design-system.md)                      | ✅     | 00         |
-| 02  | [Database Foundation](phase-02-database-foundation.md)                              | ⬜     | 00         |
+| 02  | [Database Foundation](phase-02-database-foundation.md)                              | ✅     | 00         |
 | 03  | [User Authentication](phase-03-user-authentication.md)                              | ⬜     | 01, 02     |
 | 04  | [Memory Store](phase-04-memory-store.md)                                            | ⬜     | 02, 03     |
 | 05  | [Connected Apps & API Keys](phase-05-connected-apps-registry.md)                    | ⬜     | 02, 03     |
@@ -27,7 +27,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · 🔁 Redone (see [Piv
 | 16  | [User Control Center & Data Ownership](phase-16-user-control-center.md)             | ⬜     | 04–07, 10  |
 | 17  | [Deployment](phase-17-deployment.md)                                                | ⬜     | all        |
 
-**Progress:** 2 / 18 done.
+**Progress:** 3 / 18 done.
 
 Other docs in this folder:
 
@@ -124,7 +124,12 @@ Record every library or approach decision here, so later sessions don't ask agai
 | 01    | Fonts                     | Atkinson Hyperlegible Next (all text) + Atkinson Hyperlegible Mono (machine strings only), via `next/font/google`                                  | User asked for a distinctive pairing; agent's pick                                                                               |
 | 01    | Client data fetching      | None (no TanStack Query)                                                                                                                           | Per phase doc; Server Components + Server Actions cover the MVP                                                                  |
 | 01    | Agent tooling             | Skill `shadcn` (official, `.claude/skills`, in `skills-lock.json`); plugin `frontend-design@anthropic-plugin-directory` in `.claude/settings.json` | User choice. Project scope only                                                                                                  |
-| 02    | Dev database              | Local Postgres in Docker via `docker-compose.yml`; hosted Supabase added later                                                                     | User choice (2026-11-14), made early. Phase 02 builds it                                                                         |
+| 02    | Dev database              | Local Postgres in Docker via `docker-compose.yml` (`postgres:17-alpine`, `127.0.0.1:5432`); hosted Supabase added later                            | User choice (2026-11-14), made early. Postgres 17 matches the Supabase platform default                                          |
+| 02    | ORM                       | Drizzle ORM 0.45 + drizzle-kit 0.31                                                                                                                | User choice (2026-11-14) over Prisma 7 _(past)_. No official Drizzle skill exists. Explicit snake_case column names, no `casing` |
+| 02    | DB driver                 | postgres.js 3.4, `prepare: false`                                                                                                                  | Pinned to v3: v4 (2026-10-29) is newer than Drizzle 0.45. `prepare: false` for Supabase's transaction pooler                     |
+| 02    | Schema & migrations       | Tables in `src/db/schema/<domain>.ts` + barrel `index.ts`; SQL migrations in `drizzle/`; `db:generate` / `db:migrate` / `db:studio`                | Each feature phase owns its schema file and migration. Never `drizzle-kit push`                                                  |
+| 02    | DB env vars               | `DATABASE_URL` in the env schema (app); `DIRECT_URL` read only by `drizzle.config.ts`                                                              | The app never needs the direct URL. drizzle-kit loads `.env.local` itself (`bun run` doesn't pass it on)                         |
+| 02    | Agent tooling             | Skill `supabase-postgres-best-practices` (official). Supabase MCP in `.mcp.json`: remote HTTP, OAuth, `read_only=true`                             | User choice. Project scope only. Add `project_ref` once a hosted project exists                                                  |
 
 ## Pivot Log
 

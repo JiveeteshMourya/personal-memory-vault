@@ -21,7 +21,7 @@ Run the prototype on the internet with production configuration, so the Jane dem
   - a separate Supabase project and Pinecone index (recommended)
   - the same free-tier projects with separate schemas or namespaces
 - **Domain:** the default host subdomain, or a custom domain.
-- **Migrations on deploy:** a manual command (MVP) or a build step.
+- **Migrations on deploy:** `bun run db:migrate` with `DIRECT_URL` set to the production direct connection, run manually (MVP) or as a build step.
 
 ## Skills / plugins to look for
 

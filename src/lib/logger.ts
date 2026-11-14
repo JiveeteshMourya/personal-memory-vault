@@ -2,10 +2,12 @@ type LogLevel = "info" | "warn" | "error";
 type LogMeta = Record<string, unknown>;
 
 // Errors serialize to `{}` by default, and their extra props (e.g. a DB error's `detail`)
-// can echo user data, so keep only name, message and stack.
+// can echo user data, so keep only name, message, stack and a string `code`. A code is a system
+// code (`ECONNREFUSED`) or a Postgres SQLSTATE (`28P01`), never data.
 function serializeErrors(_key: string, value: unknown) {
   if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack };
+    const code = "code" in value && typeof value.code === "string" ? value.code : undefined;
+    return { name: value.name, message: value.message, code, stack: value.stack };
   }
   return value;
 }

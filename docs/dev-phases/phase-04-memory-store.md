@@ -23,7 +23,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 ## Skills / plugins to look for
 
-None beyond those already installed. Re-check the ORM's skills if any were installed in Phase 02.
+None beyond those already installed. Load `supabase-postgres-best-practices` (installed in Phase 02) before designing the `memories` table and its indexes. Drizzle has no official skill.
 
 ## In scope (MVP slice)
 

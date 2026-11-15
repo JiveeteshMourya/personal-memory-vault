@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --isolate",
     "format": "bun fmt",
     "format:check": "bun fmt --check",
     "db:generate": "drizzle-kit generate",

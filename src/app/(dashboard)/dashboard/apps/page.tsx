@@ -1,23 +1,24 @@
-import { BlocksIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
+import { AppList, AppListSkeleton } from "@/app/(dashboard)/dashboard/apps/_components/app-list";
+import { RegisterAppButton } from "@/app/(dashboard)/dashboard/apps/_components/register-app-button";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Apps" };
 
+// The header is static; the list reads the session, so it streams in.
 export default function AppsPage() {
   return (
     <>
       <PageHeader
         title="Apps"
-        description="The apps connected to your vault and the keys they use to reach it."
+        description="The apps that reach your vault, each with its own key. A key proves who an app is; what it may read or save is up to you."
+        actions={<RegisterAppButton />}
       />
-      <EmptyState
-        icon={BlocksIcon}
-        title="No connected apps"
-        description="Connect an app to let it save memories. Connecting doesn’t let it read anything."
-      />
+      <Suspense fallback={<AppListSkeleton />}>
+        <AppList />
+      </Suspense>
     </>
   );
 }

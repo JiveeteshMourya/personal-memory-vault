@@ -9,7 +9,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 ## Coupling boundary
 
 - **Owns:** `src/lib/crypto.ts`, `src/lib/memory-taxonomy.ts`, the `memories` table and migration, `src/data/memories.ts`, the `/dashboard/memories` page and its Server Actions, the Jane seed script.
-- **Must not:** know about permissions, connected-app auth or AI. `source_app_id` is just a nullable column; Phase 05 may add the FK in its own migration.
+- **Must not:** know about permissions, connected-app auth or AI. `source_app_id` is just a nullable column; Phase 05 owns its FK to `connected_apps`.
 - **Later changes by other phases:** Phase 10 adds index-sync calls to this DAL's write functions. Phase 11 reuses `insertMemory`.
 
 ## Decisions (made with the user, 2026-11-15)
@@ -75,7 +75,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
   - `sensitivityRank(level)`, from 0 (low) to 3 (restricted)
   - `CATEGORY_LABELS`, `SENSITIVITY_LABELS` (sentence case, for UIs)
 - **Types and functions** from `@/data/memories`:
-  - **`MemorySource`** `= { type: "user" } | { type: "app"; appId: string }`
+  - **`MemorySource`** `= { type: "user" } | { type: "app"; appId: string | null }`. `appId` is null once the app that wrote the memory is deleted (Phase 05: `ON DELETE SET NULL`); the memory stays the owner's.
   - **`MemoryDTO`** `= { id, content, category, sensitivity, source: MemorySource, occurredAt: Date, createdAt: Date }`
   - **`MemoryInput`** `= { content, category, sensitivity, occurredAt?: Date }`. `occurredAt` defaults to now.
   - **Owner-scoped:**
@@ -86,7 +86,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
     - `deleteMemory(id)` returns `boolean`.
     - Someone else's id behaves exactly like a missing one.
   - **Low-level (not session-checked; the caller must have authorized the access):**
-    - `insertMemory(userId, input, source)` returns `MemoryDTO`.
+    - `insertMemory(userId, input, source)` returns `MemoryDTO`. `source` is `{ type: "user" } | { type: "app"; appId: string }` (never a null app id).
     - `getMemoriesByIds(userId, ids)` returns `MemoryDTO[]` **in the order of `ids`**, so a relevance ranking survives. Ids that are missing or belong to someone else are left out.
 - **Schema:** `memories` and `MEMORY_SOURCE_TYPES` from `@/db/schema`.
 
@@ -193,7 +193,7 @@ Done 2026-11-15.
   - `createMemory` goes through `insertMemory`, so index on `insertMemory`, `updateMemory` and `deleteMemory`.
   - `deleteMemory` returns only a boolean; it has the id already.
   - The seed bypasses the DAL: re-index Jane through Phase 10's backfill, or re-seed after Phase 10 adds a hook.
-- **Phase 05:** `source_app_id` has no FK and no index yet. Add both (`memories_source_app_id_idx`) in Phase 05's migration. The source check already requires an app id for `source_type = 'app'`.
+- **Phase 05 (done):** `source_app_id` now has its FK to `connected_apps` (`ON DELETE SET NULL`) and `memories_source_app_id_idx`. `memories_source_check` now allows `source_type = 'app'` with a null app id (an app that was deleted). New memories still name their writer: `insertMemory`'s `source` is `{ type: "user" } | { type: "app"; appId: string }`.
 - **Changing the taxonomy needs a migration.** The check constraints inline the lists. Edit `memory-taxonomy.ts`, then `db:generate`, which picks up the changed checks.
 - **The form submits through `onSubmit` + `startTransition(dispatch)`, not `<form action>`.** This keeps React from resetting the fields on a validation error, so nothing has to be echoed back. The cost is no no-JS fallback, which is fine since the dialog needs JS anyway.
 - **Dates:**

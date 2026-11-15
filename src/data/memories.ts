@@ -6,8 +6,8 @@ import { decryptField, encryptField } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import type { MemoryCategory, Sensitivity } from "@/lib/memory-taxonomy";
 
-/** Who wrote a memory: the owner, or a connected app. */
-export type MemorySource = { type: "user" } | { type: "app"; appId: string };
+/** Who wrote a memory: the owner, or a connected app (`appId` null once that app is deleted). */
+export type MemorySource = { type: "user" } | { type: "app"; appId: string | null };
 
 /** A decrypted memory. Only ever returned to the owner or to an authorized caller. */
 export type MemoryDTO = {
@@ -62,8 +62,7 @@ function toDTO(row: MemoryRow): MemoryDTO {
     content: decryptField(row.contentEncrypted),
     category: row.category,
     sensitivity: row.sensitivity,
-    // The memories_source_check constraint guarantees an app id for app-written rows.
-    source: row.sourceType === "app" ? { type: "app", appId: row.sourceAppId! } : { type: "user" },
+    source: row.sourceType === "app" ? { type: "app", appId: row.sourceAppId } : { type: "user" },
     occurredAt: row.occurredAt,
     createdAt: row.createdAt,
   };
@@ -153,7 +152,8 @@ export async function deleteMemory(id: string): Promise<boolean> {
 export async function insertMemory(
   userId: string,
   input: MemoryInput,
-  source: MemorySource
+  // Only a deleted app leaves a memory without an app id; a new memory always names its writer.
+  source: { type: "user" } | { type: "app"; appId: string }
 ): Promise<MemoryDTO> {
   const [row] = await db
     .insert(memories)

@@ -46,7 +46,7 @@ The interfaces other phases may rely on: function signatures, routes, request an
 
 - [ ] Happy-path checks, run manually in the browser plus `next-devtools` MCP error and route checks.
 - [ ] Unit tests for critical pure logic only.
-- [ ] `bun run lint`, `bun run typecheck`, `bun test` and `bun run format:check` pass.
+- [ ] `bun run lint`, `bun run typecheck`, `bun run test` and `bun run format:check` pass.
 
 ## Outcome & handoff notes
 

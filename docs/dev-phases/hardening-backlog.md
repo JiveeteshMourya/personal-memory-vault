@@ -65,6 +65,11 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 - [ ] [P05] No key rotation grace period — rotating a key breaks the app immediately — overlap window with two active keys.
 - [ ] [P05] Keys never expire — long-lived credential risk — optional expiry plus reminders.
+- [ ] [P05] `last_used_at` is written on every authenticated request — a busy app turns every read into a write — only update when the stored value is older than a minute (`where last_used_at < now() - interval '1 minute'`).
+- [ ] [P05] One key belongs to one vault owner — an external app serving many people can't connect each person's vault — an OAuth-style "connect your vault" flow that issues a per-user key or token.
+- [ ] [P05] Apps are hard-deleted — audit events (P07) lose the app's name once it's gone — soft-delete apps (`deleted_at`, keys revoked) and hide them from the list.
+- [ ] [P05] Apps can't be renamed or have their description edited — a typo means delete and re-register, which changes the app id — an edit dialog backed by `updateApp`.
+- [ ] [P05] Keys aren't bound to a calling origin or IP — a leaked key works from anywhere — optional allowed-IP list per app, or request signing.
 
 ## P06 — Permission & Policy Engine
 

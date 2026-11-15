@@ -45,7 +45,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 - `import { db } from "@/lib/db"` gives the Drizzle client (postgres.js driver). Import it **only** from `src/data/*` (the DAL) and scripts, never from components or route handlers directly.
 - Tables live in `src/db/schema/<domain>.ts` and are re-exported from `src/db/schema/index.ts`. DAL modules import them from `@/db/schema`.
 - Migrations: `bun run db:generate --name <change>` writes SQL to `drizzle/`, and `bun run db:migrate` applies it. The rule: **tables are created only through migrations owned by the feature phase** (never `drizzle-kit push`).
-- IDs are UUIDs; timestamps are `timestamptz`; every user-owned table has a `user_id` column (FK to the auth user table once Phase 03 exists). Column names are explicit snake_case.
+- IDs are UUIDs; timestamps are `timestamptz`; every user-owned table has a `user_id uuid` column, an FK to Phase 03's `users.id`. Column names are explicit snake_case.
 - `import { checkDatabase } from "@/data/health"`: `() => Promise<"ok" | "error">`. It never throws.
 - `GET /api/v1/health` returns `200 { status: "ok", db: "ok" }`, or `503 { status: "error", db: "error" }` when the database is unreachable.
 
@@ -73,7 +73,7 @@ Done 2026-11-14.
 - **Schema and migrations:**
   - `drizzle.config.ts` reads `DIRECT_URL`. It loads `.env.local` itself with Node's `process.loadEnvFile`, because `bun run` doesn't pass `.env.local` on to drizzle-kit (which runs on Node).
   - `src/db/schema/index.ts` is the empty barrel.
-  - `drizzle/0000_init.sql` is an intentionally empty baseline (a drizzle-kit `--custom` migration). It gives drizzle-kit a journal, so `bun run db:migrate` works on a fresh clone. Without it, drizzle-kit fails for lack of `meta/_journal.json`. Phase 03's first real migration will be `0001_…`.
+  - `drizzle/0000_init.sql` is an intentionally empty baseline (a drizzle-kit `--custom` migration). It gives drizzle-kit a journal, so `bun run db:migrate` works on a fresh clone. Without it, drizzle-kit fails for lack of `meta/_journal.json`. The first real migration is Phase 03's `0001_auth`.
   - `bunfig.toml` excludes `drizzle/` from `bun fmt`.
 - **Env:** `DATABASE_URL` is validated as a `postgres://` or `postgresql://` URL. `test/setup.ts` supplies a placeholder so tests can import `env` without a database.
 - **Health:** `src/data/health.ts` (`checkDatabase`) and the route return 200 or 503.
@@ -104,16 +104,16 @@ Done 2026-11-14.
 2. **Create `src/db/schema/<domain>.ts`.** Use relative imports only, and import only `drizzle-orm`. Example:
 
    ```ts
-   import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-   import { user } from "./auth"; // Phase 03's table
+   import { index, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+   import { users } from "./auth"; // Phase 03's table
 
    export const memories = pgTable(
      "memories",
      {
        id: uuid("id").primaryKey().defaultRandom(),
-       userId: text("user_id") // same type as the auth user id
+       userId: uuid("user_id") // users.id is a uuid
          .notNull()
-         .references(() => user.id, { onDelete: "cascade" }),
+         .references(() => users.id, { onDelete: "cascade" }),
        // …feature columns…
        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
        updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -127,7 +127,7 @@ Done 2026-11-14.
 
 3. **Re-export it.** Add `export * from "./<domain>";` to `src/db/schema/index.ts`. Without that line, both drizzle-kit and `db.query` ignore the table.
 4. **Generate and apply the migration.** Run `docker compose up -d`, then `bun run db:generate --name <change>`. Review `drizzle/NNNN_<change>.sql`, then run `bun run db:migrate`. Commit the schema file, the SQL and `drizzle/meta/` together.
-5. **Write the DAL module (`src/data/<domain>.ts`).** It starts with `import "server-only"`, `import { db } from "@/lib/db"` and `import { memories } from "@/db/schema"`. It filters every query by the owner's `userId` and returns DTOs, never rows.
+5. **Write the DAL module (`src/data/<domain>.ts`).** It starts with `import "server-only"`, `import { db } from "@/lib/db"` and `import { memories } from "@/db/schema"`. Each function begins with `const user = await requireUser()` (from `@/data/auth`, Phase 03), filters every query by `user.id`, and returns DTOs, never rows.
 
 **Gotchas for later phases:**
 

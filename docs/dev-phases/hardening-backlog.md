@@ -43,7 +43,12 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 - [ ] [P03] No email verification or password reset — account takeover and lockouts — enable Better Auth email flows with a mail provider.
 - [ ] [P03] No 2FA — weak protection for the most sensitive data a user has — Better Auth two-factor plugin.
-- [ ] [P03] No login lockout or throttling — credential stuffing — rate limit plus lockout.
+- [ ] [P03] No login lockout or throttling. Better Auth's built-in rate limiter only covers direct `/api/auth/*` HTTP calls; the app's Server Actions call `auth.api` server-side, which it skips — credential stuffing — throttle per IP and per email in the sign-in/sign-up actions (or route the forms through the HTTP endpoints), plus lockout.
+- [ ] [P03] Sign-up says "An account with this email already exists" — anyone can check whether an email has a vault (enumeration) — once email verification exists, answer sign-up the same way either way and send the "you already have an account" notice by email.
+- [ ] [P03] No return to the page you came from: the proxy and `requireUser` always send you to `/sign-in`, and sign-in always lands on `/dashboard` — a deep link (e.g. a consent request in P14) loses its target — pass a validated same-origin `next` path through the redirect and the sign-in action.
+- [ ] [P03] A stale or revoked session cookie isn't cleared until the next sign-in or sign-out (RSCs can't set cookies) — harmless, since every request rechecks the session, but the proxy keeps letting that browser through to a redirect — clear it in a Route Handler or Server Action when `requireUser` finds no session.
+- [ ] [P03] `sessions` stores each sign-in's IP address and user agent (Better Auth defaults) — more personal data at rest than the MVP uses — keep it for a future "active sessions" view, or turn off with `advanced.ipAddress.disableIpTracking`.
+- [ ] [P03] Session cookies get the `Secure` flag only when `BETTER_AUTH_URL` is https — a misconfigured production URL would send the cookie over plain HTTP — set `advanced.useSecureCookies: true` in production (P17) and check `BETTER_AUTH_URL` there.
 
 ## P04 — Memory Store
 

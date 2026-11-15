@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { NavList } from "@/components/layout/nav-list";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
-import { UserMenu } from "@/components/layout/user-menu";
+import { UserMenu, UserMenuSkeleton } from "@/components/layout/user-menu";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -42,7 +42,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
-            <UserMenu />
+            {/* The user menu reads the session; the rest of the shell stays static. */}
+            <Suspense fallback={<UserMenuSkeleton />}>
+              <UserMenu />
+            </Suspense>
           </div>
         </header>
         <main id="main" className="flex-1 px-4 py-8 sm:px-6 lg:px-10">

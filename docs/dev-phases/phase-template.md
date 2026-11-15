@@ -22,7 +22,7 @@ Ask before installing anything. Mark the user's past picks as _(past)_ and sugge
 
 ## Skills / plugins to look for
 
-Look for official skills/plugins first. Install them in project scope only, and only with the user's permission.
+Usually "None expected." List a skill, plugin or MCP server only if this phase's work needs it and nothing installed or bundled covers it. Follow the index's [Agent tooling](phase-index.md#agent-tooling) rules: official only, the smallest unit (one skill over a plugin), project scope, and the user's permission first.
 
 ## In scope (MVP slice)
 

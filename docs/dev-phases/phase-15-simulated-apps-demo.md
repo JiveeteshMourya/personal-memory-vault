@@ -27,7 +27,7 @@ Demonstrate the whole concept from the objective's "Jane" example. Three simulat
 
 ## Skills / plugins to look for
 
-None expected. The installed frontend skills apply.
+None expected. Use the `shadcn` skill and Phase 01's design system.
 
 ## In scope (MVP slice)
 

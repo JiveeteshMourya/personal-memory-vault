@@ -22,7 +22,8 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
 
 ## Skills / plugins
 
-- `better-auth-best-practices` and `create-auth` from `better-auth/skills` (official), in `.claude/skills/` and tracked in `skills-lock.json`. Their Claude plugin bundles the same two skills, so no plugin is installed.
+- `better-auth-best-practices` and `create-auth` from `better-auth/skills` (official), installed for this phase only and removed afterwards, since no later phase builds auth. Their Claude plugin bundles the same two skills, so no plugin was installed.
+- A later phase that changes Better Auth config (for example the 2FA or email-flow backlog items) re-adds `better-auth-best-practices` for that phase only.
 - Bundled Next.js guides read: `01-app/02-guides/authentication.md` and `authentication-with-cache-components.md`.
 
 ## In scope (MVP slice)
@@ -50,7 +51,9 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
 - **Owner id:** `users.id` is the vault owner id, a **uuid**. Every feature table references it as `user_id`:
   ```ts
   import { users } from "./auth";
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" })
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" });
   ```
 - **Routes:** `/sign-in`, `/sign-up`. `/dashboard/*` is protected.
 - **Mutations:** the auth Server Actions (`signUp`, `signIn`, `signOut`) live in `src/app/(auth)/actions.ts`.

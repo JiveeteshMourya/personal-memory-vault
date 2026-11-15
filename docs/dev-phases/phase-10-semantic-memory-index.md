@@ -21,8 +21,7 @@ Make memories searchable by meaning, within strict **per-user** boundaries and *
 
 ## Skills / plugins to look for
 
-- The **official Pinecone Claude Code plugin**, installed in project scope, or `pinecone-io/skills` via `bunx skills add … --copy`.
-- Already installed: `vercel-react-best-practices` (for the search UI).
+- From `pinecone-io/skills` (official), only the skill(s) for what this phase does, via `bunx skills add … --skill <name> --copy`. Use the Pinecone Claude Code plugin only if it's the sole official source.
 
 ## In scope (MVP slice)
 

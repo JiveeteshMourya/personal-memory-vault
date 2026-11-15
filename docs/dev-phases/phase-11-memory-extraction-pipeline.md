@@ -23,8 +23,8 @@ Apps (and the owner) can submit **unstructured input**, such as a journal entry 
 
 ## Skills / plugins to look for
 
-- If Inngest is chosen, the official Inngest skills/plugin (project scope).
-- The AI SDK skill from Phase 09.
+- If Inngest is chosen, only the official Inngest skill(s) this phase uses (project scope), not the whole plugin.
+- The AI SDK skill from Phase 09 (if installed).
 
 ## In scope (MVP slice)
 

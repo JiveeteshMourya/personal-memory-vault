@@ -27,9 +27,9 @@ Route every AI call through one small module. It provides **typed structured gen
 
 ## Skills / plugins to look for
 
-- The official Vercel **AI SDK** skill (from `vercel/vercel-plugin` / skills.sh), project scope.
-- If the provider is Anthropic, the `claude-api` skill is already available.
-- The chosen provider's official skill, if any.
+- The official Vercel **AI SDK** skill on its own (via skills.sh, project scope), not the whole `vercel/vercel-plugin` bundle.
+- If the provider is Anthropic, the bundled `claude-api` skill is already available.
+- The chosen provider's official skill, only if the AI SDK skill doesn't cover what this phase needs.
 
 ## In scope (MVP slice)
 

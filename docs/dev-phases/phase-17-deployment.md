@@ -26,7 +26,8 @@ Run the prototype on the internet with production configuration, so the Jane dem
 ## Skills / plugins to look for
 
 - `deploy-to-vercel` and `vercel-cli-with-tokens` from `vercel-labs/agent-skills` (official), if Vercel is chosen. Project scope.
-- The chosen host's official skill/plugin otherwise.
+- The chosen host's official skill otherwise (a single skill over a plugin).
+- **Supabase MCP (optional)**, once the hosted project exists. Add it to `.mcp.json` as remote HTTP at `https://mcp.supabase.com/mcp?read_only=true&project_ref=<ref>`, so it's read-only and limited to that project. It needs a one-time OAuth sign-in: run `claude` in a regular terminal (not the IDE extension), then `/mcp` → supabase → Authenticate.
 
 ## In scope (MVP slice)
 

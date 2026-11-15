@@ -20,7 +20,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
   - Local: `DATABASE_URL` and `DIRECT_URL` both point at the compose Postgres.
   - Hosted Supabase later: the pooler (transaction mode, port 6543) for the app, and the direct connection (5432) for migrations.
   - The app reads only `DATABASE_URL`; `DIRECT_URL` is read only by `drizzle.config.ts`.
-- **Supabase MCP server:** in `.mcp.json` (project scope): remote HTTP with OAuth, `read_only=true`. Add `project_ref` once a hosted project exists.
+- **Supabase MCP server:** none while dev runs on local Postgres, since there's no hosted project for it to read. Phase 17 can add it, scoped to the hosted project.
 
 ## Skills / plugins
 
@@ -38,7 +38,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 
 ## Out of scope → hardening backlog
 
-- RLS, pooling and timeout tuning, backup drills (already seeded). UUIDv7 keys, a project-scoped Supabase MCP, and DB error redaction in logs (added by this phase).
+- RLS, pooling and timeout tuning, backup drills (already seeded). UUIDv7 keys and DB error redaction in logs (added by this phase).
 
 ## Contract provided
 
@@ -79,7 +79,7 @@ Done 2026-11-14.
 - **Health:** `src/data/health.ts` (`checkDatabase`) and the route return 200 or 503.
   - On failure it logs one `warn` with the driver error (Drizzle's `.cause`), not Drizzle's wrapper, whose message holds the SQL and params.
 - **Logger:** `Error` values now also keep a string `code` (`ECONNREFUSED`, a Postgres SQLSTATE such as `28P01`). Before this, a refused connection logged an empty message. The Phase 00 contract is updated.
-- **Tooling:** the `supabase-postgres-best-practices` skill, and the Supabase MCP in `.mcp.json`. The MCP is **not yet authenticated**; see the gotchas.
+- **Tooling:** the `supabase-postgres-best-practices` skill.
 - **Tests:** 10 pass, including new ones for `checkDatabase` (ok, and error with the cause logged without the query) and the health route (200/503).
 
 **Verified:**
@@ -142,9 +142,6 @@ Done 2026-11-14.
 - **`db.query.<table>`** works for tables exported from the barrel. Relational `with:` queries also need `relations()` definitions in the schema files.
 - **postgres.js returns `timestamptz` as a JS `Date`**.
 - **Tests:** mock the DB with `mock.module("@/lib/db", () => ({ db: { … } }))` before a dynamic `await import()` of the module under test.
-- **Supabase MCP:**
-  - It needs a one-time OAuth sign-in: run `claude` in a regular terminal (not the IDE extension), then `/mcp` → supabase → Authenticate.
-  - It is read-only and not yet scoped to a project. Append `&project_ref=<ref>` when the hosted project exists.
 - **Hosted Supabase later:**
   - `DATABASE_URL` is the transaction pooler (port 6543); `prepare: false` is already set.
   - `DIRECT_URL` is the direct connection (port 5432). The direct host is IPv6-only unless you buy the IPv4 add-on; on an IPv4-only network, use the session pooler URL (pooler host, port 5432) instead.

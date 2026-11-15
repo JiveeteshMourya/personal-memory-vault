@@ -23,7 +23,7 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 ## P01 — UI Shell & Design System
 
-- [ ] [P01] No full accessibility audit — excludes keyboard and screen-reader users — run `web-design-guidelines` and an a11y review on every page.
+- [ ] [P01] No full accessibility audit — excludes keyboard and screen-reader users — run a WCAG 2.1 AA audit (keyboard, screen reader, contrast) on every page.
 - [ ] [P01] Motion and visual polish — the UI feels unfinished — add a pass after the core features land.
 - [ ] [P01] The Atkinson fonts have no size-matched fallback (next/font has no metrics for them) — a small layout shift while the web font loads — self-host with `next/font/local` and hand-tuned `size-adjust`/`ascent-override` on the fallback.
 - [ ] [P01] `theme-color` follows the OS scheme, not the in-app theme choice — browser chrome can mismatch the page after a manual switch — update the meta tag in `setTheme`.
@@ -37,7 +37,6 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P02] No backup/restore drill — data loss — document and test Supabase backups.
 - [ ] [P02] Drizzle's `DrizzleQueryError` message embeds the SQL and its params, and `errorResponse`'s generic 500 path logs that message — row values (ids, ciphertext, metadata) can land in logs — in `errorResponse`, log a `DrizzleQueryError`'s `.cause` (name + SQLSTATE `code`) instead of the wrapper. Relates to the P00 item on third-party error messages.
 - [ ] [P02] Primary keys use random UUIDv4 (`gen_random_uuid()`) — index fragmentation on large tables (the Supabase skill's `schema-primary-keys` rule) — switch to time-ordered UUIDv7 (native `uuidv7()` on Postgres 18, or generated in the app) if a table grows large.
-- [ ] [P02] The Supabase MCP isn't scoped to a project yet (no hosted project exists) — the agent gets read-only access to the whole Supabase account — append `&project_ref=<ref>` to the URL in `.mcp.json` once the hosted project exists.
 
 ## P03 — User Authentication
 

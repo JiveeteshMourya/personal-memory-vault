@@ -60,7 +60,7 @@ The agent has full design freedom. The user will ask for edits.
   - `PageHeader({ title, description?, actions? })`: every dashboard page starts with one. `actions` is where page-level buttons go.
   - `EmptyState({ icon, title, description, action? })`: built on the shadcn `Empty` primitive.
 - **Dashboard route map** (above). Feature phases replace the placeholder content of their page. They do not restructure the shell.
-- **Nav config:** the single `navItems` array in `src/components/layout/nav-items.ts` (`{ href, label, icon }`). Later phases add entries there, e.g. "Requests" in Phase 14. Active highlighting is automatic (longest matching href).
+- **Nav config:** the single `navItems` array in `src/components/layout/nav-items.ts` (`{ href, label, icon }`). Later phases add entries there. Active highlighting is automatic (longest matching href).
 - **Theme:** `src/lib/theme.ts` (`Theme`, `setTheme`, `applyTheme`, `readStoredTheme`), `ThemeToggle` from `src/components/theme-toggle.tsx`. Dark mode is the `.dark` class on `<html>`.
 - **Toasts:** `import { toast } from "@/components/ui/toast"` and call `toast.add({ title, description?, type? })` from client code. `<Toaster />` is mounted once in the root layout.
 - **Shared brand pieces:** `Logo` / `LogoMark` from `src/components/logo.tsx`.

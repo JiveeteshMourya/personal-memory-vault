@@ -139,14 +139,14 @@ The initial implementation will follow a web-first approach, built as a single N
 Potential technologies include:
 
 - **Frontend:** Next.js (React).
-- **Structured Storage:** Supabase PostgreSQL (free tier) for structured memories, application records, and permissions.
-- **Semantic Storage:** Pinecone vector database (free tier) for semantic memory retrieval.
-- **Security:** Application-level encryption of sensitive memory fields, in addition to Supabase's and Pinecone's encryption at rest.
+- **Structured Storage:** PostgreSQL (the same engine Supabase hosts), run locally in Docker for the prototype, for structured memories, application records, and permissions.
+- **Semantic Storage:** Pinecone (Pinecone Local in Docker for the prototype) for semantic memory retrieval.
+- **Security:** Application-level encryption of memory content, so the databases only ever hold ciphertext.
 - **Backend/Gateway:** Next.js server-side API routes within the same application.
 - **AI Processing:** Large Language Models, embeddings, semantic search, and retrieval-augmented generation.
 - **Communication:** Authenticated APIs for application-to-vault communication.
 
-The initial prototype will demonstrate the architecture using simulated connected applications and sample personal memories.
+The initial prototype runs locally and demonstrates the architecture using sample personal memories and independent GenAI applications, built in a separate project, that connect through the public API.
 
 The system is intended to support additional platforms, such as native mobile apps, eventually, while the initial prototype is a web application.
 

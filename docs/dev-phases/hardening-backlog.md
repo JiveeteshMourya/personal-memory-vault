@@ -18,7 +18,7 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 - [ ] [P00] No pre-commit hooks — unformatted or broken commits — lefthook/husky running format and lint on staged files.
 - [ ] [P00] Unhandled-error logs include the error `message` and `stack` — a third-party error message (e.g. a DB error quoting a value) could echo user data into logs — redact messages from known sources or log only `name` plus a fingerprint for them.
-- [ ] [P00] With invalid env, a self-hosted `next start` logs the error but keeps the process alive, answering 500 — a process supervisor won't restart or alert — have P17 rely on the `/api/v1/health` check, or `process.exit(1)` from `register()` on the Node runtime.
+- [ ] [P00] With invalid env, a self-hosted `next start` logs the error but keeps the process alive, answering 500 — a process supervisor won't restart or alert — if it's ever deployed, rely on the `/api/v1/health` check, or `process.exit(1)` from `register()` on the Node runtime.
 - [ ] [P00] `validation_error` details use `z.flattenError`, which only reports top-level fields — nested request bodies get vague errors — switch to `z.treeifyError` when an endpoint takes nested input.
 
 ## P01 — UI Shell & Design System
@@ -44,10 +44,10 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P03] No 2FA — weak protection for the most sensitive data a user has — Better Auth two-factor plugin.
 - [ ] [P03] No login lockout or throttling. Better Auth's built-in rate limiter only covers direct `/api/auth/*` HTTP calls; the app's Server Actions call `auth.api` server-side, which it skips — credential stuffing — throttle per IP and per email in the sign-in/sign-up actions (or route the forms through the HTTP endpoints), plus lockout.
 - [ ] [P03] Sign-up says "An account with this email already exists" — anyone can check whether an email has a vault (enumeration) — once email verification exists, answer sign-up the same way either way and send the "you already have an account" notice by email.
-- [ ] [P03] No return to the page you came from: the proxy and `requireUser` always send you to `/sign-in`, and sign-in always lands on `/dashboard` — a deep link (e.g. a consent request in P14) loses its target — pass a validated same-origin `next` path through the redirect and the sign-in action.
+- [ ] [P03] No return to the page you came from: the proxy and `requireUser` always send you to `/sign-in`, and sign-in always lands on `/dashboard` — a deep link (e.g. a consent request from P09) loses its target — pass a validated same-origin `next` path through the redirect and the sign-in action.
 - [ ] [P03] A stale or revoked session cookie isn't cleared until the next sign-in or sign-out (RSCs can't set cookies) — harmless, since every request rechecks the session, but the proxy keeps letting that browser through to a redirect — clear it in a Route Handler or Server Action when `requireUser` finds no session.
 - [ ] [P03] `sessions` stores each sign-in's IP address and user agent (Better Auth defaults) — more personal data at rest than the MVP uses — keep it for a future "active sessions" view, or turn off with `advanced.ipAddress.disableIpTracking`.
-- [ ] [P03] Session cookies get the `Secure` flag only when `BETTER_AUTH_URL` is https — a misconfigured production URL would send the cookie over plain HTTP — set `advanced.useSecureCookies: true` in production (P17) and check `BETTER_AUTH_URL` there.
+- [ ] [P03] Session cookies get the `Secure` flag only when `BETTER_AUTH_URL` is https — a misconfigured production URL would send the cookie over plain HTTP — set `advanced.useSecureCookies: true` in production (if deployed) and check `BETTER_AUTH_URL` there.
 
 ## P04 — Memory Store
 
@@ -57,9 +57,9 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P04] Hard delete only — accidental loss — soft delete with a short restore window.
 - [ ] [P04] Ciphertext isn't bound to its row (no AAD) — someone with database write access could swap encrypted content between rows or owners undetected — pass the owner and memory ids as GCM additional authenticated data (changes the `encryptField` contract).
 - [ ] [P04] Offset pagination — deep pages scan every skipped row, and inserts or deletes shift items between pages — keyset pagination on `(occurred_at, id)` (skill rule `data-pagination`).
-- [ ] [P04] Seeded memories are all owner-sourced — the demo can't show app provenance before Phase 15 — reseed with app ids once Phase 05 exists, or rely on Phase 15's simulated apps.
+- [x] [P04] Seeded memories are all owner-sourced — the demo can't show app provenance — resolved by design: the hub apps write live during the demo (Phase 09 runbook).
 - [ ] [P04] Dates render in UTC on the server and switch to local time on hydration — a brief flicker; without JS they stay UTC — keep a timezone preference (cookie) and format on the server.
-- [ ] [P04] Memory content is plain text capped at 2,000 characters — long journal entries are rejected — raise the cap, or route long input through Phase 11's raw-input pipeline.
+- [ ] [P04] Owner-entered memories are capped at 2,000 characters — a long note typed in the dashboard is rejected (apps aren't affected: Phase 07's free-text endpoint splits up to 8,000 characters into atomic memories) — add an "extract from text" option for the owner, using Phase 07's extraction.
 
 ## P05 — Connected Apps & API Keys
 
@@ -67,63 +67,50 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P05] Keys never expire — long-lived credential risk — optional expiry plus reminders.
 - [ ] [P05] `last_used_at` is written on every authenticated request — a busy app turns every read into a write — only update when the stored value is older than a minute (`where last_used_at < now() - interval '1 minute'`).
 - [ ] [P05] One key belongs to one vault owner — an external app serving many people can't connect each person's vault — an OAuth-style "connect your vault" flow that issues a per-user key or token.
-- [ ] [P05] Apps are hard-deleted — audit events (P07) lose the app's name once it's gone — soft-delete apps (`deleted_at`, keys revoked) and hide them from the list.
+- [ ] [P05] Apps are hard-deleted — only the `app_name` snapshot in audit events (P06) remembers the app, and its memories become unshareable orphans — soft-delete apps (`deleted_at`, keys revoked) and hide them from the list.
 - [ ] [P05] Apps can't be renamed or have their description edited — a typo means delete and re-register, which changes the app id — an edit dialog backed by `updateApp`.
 - [ ] [P05] Keys aren't bound to a calling origin or IP — a leaked key works from anywhere — optional allowed-IP list per app, or request signing.
 
-## P06 — Permission & Policy Engine
+## P06 — Taxonomy, Permissions, Gateway & Audit
 
-- [ ] [P06] Grants aren't bound to a purpose — an app can reuse access for any stated purpose — purpose-bound grants (see also P14).
-- [ ] [P06] No grant history — can't answer "who had access when" — append-only grant change log.
+- [ ] [P06] Grants aren't bound to a purpose (purpose is only logged) — an app can reuse access for any stated purpose — purpose-bound grants.
+- [ ] [P06] No grant history (revoking deletes the row) — can't answer "who had access when" — append-only grant change log.
+- [ ] [P06] Audit log is not tamper-evident — a DB-level attacker can rewrite history — hash-chain the events.
+- [ ] [P06] No alerting on unusual denials or access spikes — silent abuse — threshold alerts surfaced in the dashboard.
 
-## P07 — Context Gateway Core & Audit Log
+## P07 — AI Ingest, Retract & Semantic Index
 
-- [ ] [P07] Audit log is not tamper-evident — a DB-level attacker can rewrite history — hash-chain the events.
-- [ ] [P07] No alerting on unusual denials or access spikes — silent abuse — threshold alerts surfaced in the dashboard.
+- [ ] [P07] No per-app quotas (only body-size limits) — storage and AI-cost abuse — per-app daily write quota.
+- [ ] [P07] No retries or fallback provider — an OpenAI outage fails writes with 502 — retry with backoff, plus an optional fallback model.
+- [ ] [P07] No token and cost tracking — surprise bills — log usage per call (without content).
+- [ ] [P07] Pinecone Local is in-memory — vectors vanish on every container restart until `bun run reindex` — a persistent vector store (Pinecone cloud or pgvector), or reindex automatically on startup when the index is empty.
+- [ ] [P07] Embeddings are derived from sensitive plaintext — embedding-inversion risk if the index leaks — review the threat; consider per-tier indexes or keeping `protected` memories out of the vector index.
+- [ ] [P07] The index can drift from Postgres if a sync call fails — stale or missing results — periodic reconcile job.
+- [ ] [P07] Prompt-injection hardening is prompt-only — app-supplied text could steer extraction or classification — input delimiting, a sensitivity floor for suspicious input, and an output check.
+- [ ] [P07] No relationship graph between memories — weaker synthesis — relationship extraction step.
+- [ ] [P07] `session_id` and `external_id` are stored in plaintext — app-chosen ids could carry personal data — store HMACs instead.
 
-## P08 — Memory Ingest API
+## P08 — Context API, Access History & Playground
 
-- [ ] [P08] No idempotency keys — duplicate memories when an app retries — `Idempotency-Key` header with a stored response.
-- [ ] [P08] No payload size limits or per-app quotas — storage and cost abuse — body size cap and per-app daily quota.
+- [ ] [P08] No defense against query enumeration (many narrow queries reconstructing a category) — gradual exfiltration within granted scope — per-app query budgets and anomaly detection.
+- [ ] [P08] No per-tier result caps — over-disclosure — cap the memories used per tier.
+- [ ] [P08] No leakage evals — the projection may include more than the purpose needs — an eval set with privacy assertions.
+- [ ] [P08] No output redaction pass — PII may slip through the projection — a PII scrubber on the output.
 
-## P09 — AI Provider Layer
+## P09 — Consent, Overview & Demo Readiness
 
-- [ ] [P09] No retries or fallback provider — provider outages break the pipelines — retry with backoff, plus an optional fallback model.
-- [ ] [P09] No token and cost tracking — surprise bills — log usage per call (without content).
+- [ ] [P09] No notifications for new consent requests — the owner may never see them — email or push notification.
 
-## P10 — Semantic Memory Index
+## Sprint cut (2026-11-15)
 
-- [ ] [P10] Embeddings are derived from sensitive plaintext and stored in a third-party index — embedding-inversion risk — review the threat; consider self-hosted embeddings/pgvector for the most sensitive tiers.
-- [ ] [P10] Index can drift from Postgres if a sync call fails — stale or missing results — periodic reconcile job.
+Work dropped from the plan to make the 2026-11-17 demo. See the Pivot Log in the index.
 
-## P11 — Extraction & Classification Pipeline
-
-- [ ] [P11] No prompt-injection hardening — app-supplied text could steer extraction or classification — input delimiting, an output schema check and a sensitivity floor for suspicious input.
-- [ ] [P11] No dedupe or merge of extracted memories — duplicate facts — similarity check before insert.
-- [ ] [P11] No relationship graph between memories — weaker synthesis — relationship extraction step.
-- [ ] [P11] No retries or dead-letter for failed inputs — silent loss — retry policy plus a failed-inputs view.
-
-## P12 — Context Request API
-
-- [ ] [P12] No defense against query enumeration (many narrow queries reconstructing a category) — gradual exfiltration within granted scope — per-app query budgets and anomaly detection.
-- [ ] [P12] No per-sensitivity result caps — over-disclosure — cap items returned per sensitivity level.
-
-## P13 — Context Projection & Synthesis
-
-- [ ] [P13] No leakage evals — the projection may include more than the purpose needs — eval set with privacy assertions.
-- [ ] [P13] No output redaction pass — PII may slip through the summaries — PII scrubber on the projection output.
-
-## P14 — Consent Requests & Short-lived Capabilities
-
-- [ ] [P14] No notifications for new access requests — the owner may never see them — email or push notification.
-- [ ] [P14] No revocation list for capability tokens (they rely on a short TTL) — a stolen token stays valid until expiry — denylist check on use.
-
-## P16 — User Control Center & Data Ownership
-
-- [ ] [P16] Export file is plaintext JSON — sensitive data at rest on the user's device — optional password-encrypted export.
-- [ ] [P16] Account deletion is immediate — no recovery from accidents — scheduled deletion with a grace period.
-
-## P17 — Deployment
-
-- [ ] [P17] No monitoring, uptime checks or alerts — outages go unnoticed — error tracking and uptime monitor.
-- [ ] [P17] No preview environments — changes are only tested locally — per-PR preview deploys with a separate DB.
+- [ ] [CUT] Deployment (hosted Supabase, a hosting platform, production env) — the prototype only runs locally — deploy with RLS (P02), secure cookies (P03), env fail-fast (P00) and the `/api/v1/health` check.
+- [ ] [CUT] Monitoring, uptime checks and preview environments — needed only once deployed — error tracking, an uptime monitor, per-PR previews with a separate DB.
+- [ ] [CUT] Short-lived capability tokens — a leaked API key stays valid until revoked — exchange the key for a narrowly scoped, short-TTL token per purpose, with a revocation list.
+- [ ] [CUT] Grant expiry — access lasts until the owner revokes it — optional `expires_at` (7 or 30 days) on grants and consent approvals.
+- [ ] [CUT] Data export and account deletion — the owner can't take their data out or erase the vault in one step — an export (password-encrypted) and scheduled deletion with a grace period.
+- [ ] [CUT] Semantic dedup on write — repeated syncs can store near-identical facts — a similarity check against the same source before insert.
+- [ ] [CUT] A vault-wide sensitivity ceiling — the owner can't switch off a whole tier for every app at once — one owner setting that overrides every grant.
+- [ ] [CUT] Owner feedback on disclosures — the owner can't flag "shouldn't have shared" from the access log — a flag action that removes that source from the app.
+- [ ] [CUT] Full test coverage for Phases 06–09 — only the policy engine has unit tests — DAL, route and action tests as in Phases 00–05.

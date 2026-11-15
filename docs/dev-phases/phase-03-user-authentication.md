@@ -41,7 +41,7 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
 
 ## Out of scope → hardening backlog
 
-- Email verification, password reset, 2FA, lockout and throttling (already seeded). Account deletion is Phase 16. This phase adds more items; see the backlog.
+- Email verification, password reset, 2FA, lockout and throttling (already seeded). Account deletion is in the backlog's Sprint cut. This phase adds more items; see the backlog.
 
 ## Contract provided
 
@@ -139,6 +139,6 @@ Done 2026-11-15.
 - **`nextCookies()` must stay the last plugin.** Without it, `auth.api.signInEmail` etc. in a Server Action don't set the cookie.
 - **Better Auth CLI:** `auth generate` refuses `src/lib/auth.ts` because of its `server-only` import (even with `--conditions=react-server`). After adding a plugin that brings its own fields or tables, edit `src/db/schema/auth.ts` by hand (the field names are in Better Auth's docs or `@better-auth/core`'s `get-tables`), then run `db:generate`.
 - **Rate limiting:** Better Auth's built-in rate limiter skips server-side `auth.api` calls, so the Server Action sign-in has no throttling yet (backlog). It only covers direct `/api/auth/*` HTTP calls.
-- **`BETTER_AUTH_URL` must match the origin the browser uses.** Better Auth rejects requests from other origins. Set it to the deployed URL in Phase 17.
+- **`BETTER_AUTH_URL` must match the origin the browser uses.** Better Auth rejects requests from other origins. Set it to the deployed URL if the vault is ever deployed.
 - **Restart `bun dev` after changing `BETTER_AUTH_*`**, because the server validates env at startup.
 - **The secret signs every cookie.** Changing `BETTER_AUTH_SECRET` signs everyone out.

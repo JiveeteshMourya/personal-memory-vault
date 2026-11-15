@@ -10,7 +10,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 - **Owns:** `src/lib/crypto.ts`, `src/lib/memory-taxonomy.ts`, the `memories` table and migration, `src/data/memories.ts`, the `/dashboard/memories` page and its Server Actions, the Jane seed script.
 - **Must not:** know about permissions, connected-app auth or AI. `source_app_id` is just a nullable column; Phase 05 owns its FK to `connected_apps`.
-- **Later changes by other phases:** Phase 10 adds index-sync calls to this DAL's write functions. Phase 11 reuses `insertMemory`.
+- **Later changes by other phases:** Phase 06 changes the taxonomy. Phase 07 adds index-sync calls to this DAL's write functions and reuses `insertMemory`.
 
 ## Decisions (made with the user, 2026-11-15)
 
@@ -56,7 +56,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 ## Out of scope → hardening backlog
 
-- Per-user keys, key rotation, KMS, soft delete (seeded). Content search arrives in Phase 10.
+- Per-user keys, key rotation, KMS, soft delete (seeded). Content search arrives in Phase 07.
 - This phase added:
   - AAD binding of ciphertext to its row
   - keyset pagination
@@ -189,10 +189,10 @@ Done 2026-11-15.
   - It imports `@/data/auth` → `next/navigation`, which crashes under `bun --conditions=react-server` (React's server build has no `createContext`).
   - Scripts use `encryptField` + `db` directly, as the seed does.
   - The same applies to any DAL module that imports `@/data/auth`.
-- **Phase 10 hook points:**
+- **Phase 07 hook points:**
   - `createMemory` goes through `insertMemory`, so index on `insertMemory`, `updateMemory` and `deleteMemory`.
   - `deleteMemory` returns only a boolean; it has the id already.
-  - The seed bypasses the DAL: re-index Jane through Phase 10's backfill, or re-seed after Phase 10 adds a hook.
+  - The seed bypasses the DAL: re-index Jane with Phase 07's `bun run reindex`.
 - **Phase 05 (done):** `source_app_id` now has its FK to `connected_apps` (`ON DELETE SET NULL`) and `memories_source_app_id_idx`. `memories_source_check` now allows `source_type = 'app'` with a null app id (an app that was deleted). New memories still name their writer: `insertMemory`'s `source` is `{ type: "user" } | { type: "app"; appId: string }`.
 - **Changing the taxonomy needs a migration.** The check constraints inline the lists. Edit `memory-taxonomy.ts`, then `db:generate`, which picks up the changed checks.
 - **The form submits through `onSubmit` + `startTransition(dispatch)`, not `<form action>`.** This keeps React from resetting the fields on a validation error, so nothing has to be echoed back. The cost is no no-JS fallback, which is fine since the dialog needs JS anyway.

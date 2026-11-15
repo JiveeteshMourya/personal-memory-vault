@@ -20,7 +20,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
   - Local: `DATABASE_URL` and `DIRECT_URL` both point at the compose Postgres.
   - Hosted Supabase later: the pooler (transaction mode, port 6543) for the app, and the direct connection (5432) for migrations.
   - The app reads only `DATABASE_URL`; `DIRECT_URL` is read only by `drizzle.config.ts`.
-- **Supabase MCP server:** none while dev runs on local Postgres, since there's no hosted project for it to read. Phase 17 can add it, scoped to the hosted project.
+- **Supabase MCP server:** none while dev runs on local Postgres, since there's no hosted project for it to read. The sprint runs locally with no hosted project, so none is planned.
 
 ## Skills / plugins
 

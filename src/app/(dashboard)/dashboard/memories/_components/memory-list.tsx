@@ -23,12 +23,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listMemories, type MemoryFilters as Filters } from "@/data/memories";
-import { MEMORY_CATEGORIES, SENSITIVITY_LEVELS } from "@/lib/memory-taxonomy";
+import { MEMORY_CATEGORIES, SENSITIVITY_TIERS } from "@/lib/memory-taxonomy";
 
 // Unknown or repeated values are dropped rather than erroring: the URL is user-editable.
 const searchSchema = z.object({
   category: z.enum(MEMORY_CATEGORIES).optional().catch(undefined),
-  sensitivity: z.enum(SENSITIVITY_LEVELS).optional().catch(undefined),
+  sensitivity: z.enum(SENSITIVITY_TIERS).optional().catch(undefined),
   source: z.enum(["user", "app"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
 });

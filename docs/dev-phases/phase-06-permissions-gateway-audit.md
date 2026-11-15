@@ -1,6 +1,6 @@
 # Phase 06 — Taxonomy, Permissions, Gateway & Audit
 
-> **Status:** ⬜ Not started · **Depends on:** 04 (memories), 05 (apps, `authenticateApp`) · **Unlocks:** 07, 08, 09
+> **Status:** ✅ Done · **Depends on:** 04 (memories), 05 (apps, `authenticateApp`) · **Unlocks:** 07, 08, 09
 
 ## Goal
 
@@ -51,19 +51,52 @@ The owner controls exactly what each connected app may write and read: by **cate
 
 ## Contract provided
 
-- **Taxonomy:** `MEMORY_CATEGORIES` (16), the ordered tiers, a rank helper, and labels and descriptions for both, from `@/lib/memory-taxonomy`.
-- **Policy:** `evaluateAccess`, `canRead`, `canWrite` and the `AccessScope` type, from `@/lib/policy/evaluate-access`. Decisions apply **before** retrieval.
-- **DAL:** `getAccessScope(userId, appId, operation)` from `@/data/grants`; `recordAccess(event)` and `listAccessEvents(page)` from `@/data/access-events`.
-- **Gateway:** `requireApp(request): Promise<AppIdentity>`; `parseBody(request, schema)`; errors through `errorResponse`.
+- **Taxonomy** (`@/lib/memory-taxonomy`, no imports):
+  - `MEMORY_CATEGORIES` (16) and `SENSITIVITY_TIERS` (ordered `shareable` → `protected`), with `sensitivityRank(tier)` (0–3)
+  - `CATEGORY_LABELS` / `CATEGORY_DESCRIPTIONS` and `SENSITIVITY_LABELS` / `SENSITIVITY_DESCRIPTIONS`
+  - `MEMORY_VISIBILITIES` (`shared`, `app_private`) and `Visibility`: Phase 07 adds the column from this list
+- **Policy** (`@/lib/policy/evaluate-access`, pure):
+  - `evaluateAccess({ grants, sources, operation })` returns `AccessScope = { operation, categories: CategoryCap[], sources: { ownEntries, appIds } }`. Categories come in taxonomy order; a write scope's sources are always empty.
+  - `canWrite(scope, category, sensitivity)`
+  - `canRead(scope, memory: ReadableMemory, readerAppId, now?)`. `ReadableMemory` **requires** `visibility` and `expiresAt`, so Phase 07's `MemoryDTO` must carry both before Phase 08 can pass it.
+  - Types: `CategoryCap`, `Grant`, `AccessSource`. Decisions apply **before** retrieval.
+- **Schema** (`@/db/schema`): `appGrants`, `appSourceAccess`, `accessEvents`, `GRANT_OPERATIONS`, `ACCESS_ACTIONS` / `ACCESS_CHANNELS` / `ACCESS_OUTCOMES`.
+- **DAL:**
+  - `@/data/grants`, owner-scoped: `getAppPermissions`, `setGrant`, `removeGrant`, `setSourceAccess`, `revokeAllForApp`. The writes return `false` when the app isn't the owner's.
+  - `@/data/grants`, low-level: `getAccessScope(userId, appId, operation)`.
+  - `@/data/access-events`: `recordAccess({ app, action, channel, outcome, purpose?, query?, categories?, memoryIds?, withheldCount?, sessionId? })` and the owner-scoped `listAccessEvents(page)` (20 per page, decrypted).
+- **Gateway:**
+  - `requireApp(request): Promise<AppIdentity>` (`@/lib/app-auth`) throws a 401 `unauthorized`.
+  - `parseBody(request, schema)` (`@/lib/parse-body`): pass a `z.strictObject`.
+  - Errors go through `errorResponse`, with `validation_error` details from `z.treeifyError`.
 
 ## Acceptance
 
-- [ ] The policy engine's unit tests pass (`bun run test`).
-- [ ] The migration maps the existing Jane memories, and `/dashboard/memories` shows the new labels.
-- [ ] Permission toggles and source switches persist. "Revoke all" clears both.
-- [ ] `GET /api/v1/permissions` returns 200 with a valid key and 401 with none (curl).
-- [ ] Lint, typecheck, format and build pass. The next-devtools compile check is clean.
+- [x] The policy engine's unit tests pass (`bun run test`).
+- [x] The migration maps the existing Jane memories, and `/dashboard/memories` shows the new labels.
+- [x] Permission toggles and source switches persist. "Revoke all" clears both.
+- [x] `GET /api/v1/permissions` returns 200 with a valid key and 401 with none (curl).
+- [x] Lint, typecheck, format and build pass. The next-devtools compile check is clean.
 
 ## Outcome & handoff notes
 
-_10 bullets or fewer, filled in at the end._
+Done 2026-11-15.
+
+- **Built as planned, with no new npm packages.** One shadcn primitive was added: `switch` (Base UI). The local tests (git-ignored) now number 122: the 18 policy tests are new, and the old taxonomy values were renamed in the existing suites.
+- **Migration `0004_taxonomy_permissions_audit`:** drizzle-kit generated it. A hand-written `UPDATE` sits between the dropped and re-added `memories` checks. Jane's 32 rows were mapped mechanically. The seed script is instead re-tiered by the model: activity, sleep and diet are `personal`, mood and relationships are `private`, health and finance are `protected`.
+- **Sources:** `app_source_access.source_app_id` null means "Your entries". It's `UNIQUE NULLS NOT DISTINCT`, so `onConflictDoNothing` makes ticking idempotent. Deleting a source app cascades its rows away.
+- **Grant writes:** each runs in a transaction that first locks the owner's app rows `FOR KEY SHARE`, so an app deleted at the same moment can't break the insert.
+- **Permissions UI:** one select per cell ("No access" or a tier cap, each item described), saved on change with `useOptimistic`. The app is picked with `?app=` (unknown ids fall back to the first app). "Revoke all" clears only the app's own grants and sources, not other apps' permission to read its data.
+- **`GET /api/v1/permissions`** matches `public-api.md`. `sources` reports `ownEntries`, `thisApp` and `otherAppsCount`, never ids or names. `scripts/smoke-api.sh` (`VAULT_API_KEY=… bash scripts/smoke-api.sh`) covers health and permissions. Phases 07 and 08 extend it.
+- **Verified** against `next start -p 3005`:
+  - real Server Action POSTs: grants upsert and remove; sources are idempotent; invalid or extra fields → `ok:false`
+  - a second account gets `ok:false` on Jane's app ids
+  - the audit round trip through a throwaway route: `v1:` ciphertext for purpose and query, decrypted for the owner, and `app_id` set to null with `app_name` kept after the app is deleted
+  - logs hold no keys and no memory content
+  - all probe data was deleted
+- **Gotcha: a long-running `bun dev` can keep stale server modules.** The dev server started before this phase answered `/api/v1/permissions` with 500 "requireApp is not a function", although the compiled chunk was correct. Restart `bun dev` after pulling this phase.
+- **Gotcha: React 19.3 decodes action multipart bodies as a stream.** When testing a `(state, formData)` action by hand, send the `_1_<field>` parts **before** `0=["$undefined","$K1"]`, or the fields arrive empty. Plain-args actions take `text/plain` `[{…}]`.
+- **Phase 07 hook points:**
+  - `canWrite(await getAccessScope(…, "write"), …)` for each extracted memory
+  - `recordAccess` with `outcome` `partial` when anything is withheld
+  - the memories `visibility` check should use `MEMORY_VISIBILITIES`

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 
 const promises = [
   {
-    term: "Connecting isn’t reading",
-    detail: "A new app can save memories but can’t read any until you allow it.",
+    term: "Connecting grants nothing",
+    detail: "A new app can’t save or read anything until you allow it, topic by topic.",
   },
   {
     term: "Nothing leaves without your rule",

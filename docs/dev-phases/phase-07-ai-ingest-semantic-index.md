@@ -16,9 +16,9 @@ Any connected app can send **free text or a conversation** with rich optional hi
   - `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`, 1536-d)
   - `PINECONE_HOST`, `PINECONE_INDEX`
 - **Memories schema** (migration on `src/db/schema/memories.ts`):
-  - plaintext filter fields: `provenance`, `confidence`, `importance`, `expires_at`, `visibility`, `session_id`, `external_id` (unique per `source_app_id` where not null)
+  - plaintext filter fields: `provenance`, `confidence`, `importance`, `expires_at`, `visibility` (values from `MEMORY_VISIBILITIES` in the taxonomy module), `session_id`, `external_id` (unique per `source_app_id` where not null)
   - `annotations_encrypted` holds `{ tags, entities, contentType, domain }`, encrypted like content
-  - Extend `MemoryDTO`, `insertMemory` and `getMemoriesByIds` to match. Show the new fields lightly on the memories page (no new UI work beyond that).
+  - Extend `MemoryDTO`, `insertMemory` and `getMemoriesByIds` to match. `MemoryDTO` must carry `visibility` and `expiresAt`: the policy engine's `canRead` requires both. Show the new fields lightly on the memories page (no new UI work beyond that).
 - **AI** (`src/lib/ai.ts`, a lazy client):
   - **`extractMemories(input)`** returns `{ content, category, sensitivity, tags, entities, importance, confidence, occurredAt, expiresAt }[]`, using structured output with zod. The prompt rules:
     - atomic, self-contained, third person, in English, with absolute dates (resolved from `occurredAt` and `timezone`)
@@ -50,7 +50,7 @@ Any connected app can send **free text or a conversation** with rich optional hi
   8. respond 201
   - AI or index failures return `502 processing_failed`.
 - **`DELETE /api/v1/memories`:** deletes by `ids`, `externalIds` or `sessionId`, **scoped to this app's own writes**, removes them from the index and audits. Returns 200 `{ deleted }`.
-- **`scripts/smoke-api.sh`** (curl, with the key from env) covers each endpoint's happy path plus 400, 401 and 403.
+- **Extend `scripts/smoke-api.sh`** (created in Phase 06; curl, with the key from env) to cover each new endpoint's happy path plus 400, 401 and 403.
 
 ## Contract provided
 

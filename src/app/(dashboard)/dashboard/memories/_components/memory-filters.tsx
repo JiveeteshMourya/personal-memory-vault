@@ -18,7 +18,7 @@ import {
   CATEGORY_LABELS,
   MEMORY_CATEGORIES,
   SENSITIVITY_LABELS,
-  SENSITIVITY_LEVELS,
+  SENSITIVITY_TIERS,
 } from "@/lib/memory-taxonomy";
 
 type ListFilters = Omit<Filters, "page">;
@@ -29,7 +29,7 @@ const categoryItems = [
 ];
 const sensitivityItems = [
   { value: null, label: "Any sensitivity" },
-  ...SENSITIVITY_LEVELS.map(value => ({ value, label: SENSITIVITY_LABELS[value] })),
+  ...SENSITIVITY_TIERS.map(value => ({ value, label: SENSITIVITY_LABELS[value] })),
 ];
 const sourceItems = [
   { value: null, label: "Any source" },

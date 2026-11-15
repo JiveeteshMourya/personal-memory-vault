@@ -1,48 +1,93 @@
-// The fixed vocabulary every memory is filed under. Grants (Phase 06), the semantic index
-// (Phase 10) and AI classification (Phase 11) all build on these lists.
-// No imports: the `memories` schema (loaded by drizzle-kit) and client components use it too.
+// The labels every memory carries (docs/classification-model.md). Grants, the policy engine, the
+// semantic index and AI classification all build on these lists.
+// No imports: the schema files (loaded by drizzle-kit) and client components use it too.
 
+/** Platform-agnostic topics: they fit any kind of GenAI app, not only wellbeing. */
 export const MEMORY_CATEGORIES = [
+  "identity",
+  "preferences",
+  "goals",
+  "interests",
   "activity",
   "sleep",
   "diet",
-  "mood",
   "health",
+  "mood",
   "work",
+  "education",
   "social",
-  "finance",
   "relationships",
-  "personal",
+  "finance",
+  "travel",
+  "other",
 ] as const;
 
 export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
 
-/** Ordered from least to most sensitive. Grants cap access at a maximum level. */
-export const SENSITIVITY_LEVELS = ["low", "moderate", "high", "restricted"] as const;
+/** Ordered by the harm if leaked, least first. A grant caps access at a tier. */
+export const SENSITIVITY_TIERS = ["shareable", "personal", "private", "protected"] as const;
 
-export type Sensitivity = (typeof SENSITIVITY_LEVELS)[number];
+export type Sensitivity = (typeof SENSITIVITY_TIERS)[number];
 
-/** A level's position in `SENSITIVITY_LEVELS`: 0 for low up to 3 for restricted. */
-export function sensitivityRank(level: Sensitivity): number {
-  return SENSITIVITY_LEVELS.indexOf(level);
+/** A tier's position in `SENSITIVITY_TIERS`: 0 for shareable up to 3 for protected. */
+export function sensitivityRank(tier: Sensitivity): number {
+  return SENSITIVITY_TIERS.indexOf(tier);
 }
 
+/** `shared` memories can reach any app the owner allows; `app_private` ones only their writer. */
+export const MEMORY_VISIBILITIES = ["shared", "app_private"] as const;
+
+export type Visibility = (typeof MEMORY_VISIBILITIES)[number];
+
 export const CATEGORY_LABELS: Record<MemoryCategory, string> = {
+  identity: "Identity",
+  preferences: "Preferences",
+  goals: "Goals",
+  interests: "Interests",
   activity: "Activity",
   sleep: "Sleep",
   diet: "Diet",
-  mood: "Mood",
   health: "Health",
+  mood: "Mood",
   work: "Work",
+  education: "Education",
   social: "Social",
-  finance: "Finance",
   relationships: "Relationships",
-  personal: "Personal",
+  finance: "Finance",
+  travel: "Travel",
+  other: "Other",
+};
+
+export const CATEGORY_DESCRIPTIONS: Record<MemoryCategory, string> = {
+  identity: "Name, age, background, languages, pronouns, where they’re from.",
+  preferences: "Likes, dislikes, styles and constraints, like vegetarian or concise answers.",
+  goals: "What they’re working towards, short and long term.",
+  interests: "Hobbies, media and topics they follow.",
+  activity: "Exercise, workouts, steps and other physical activity.",
+  sleep: "Sleep times, duration and quality.",
+  diet: "Meals, eating habits, allergies and nutrition.",
+  health: "Symptoms, conditions, medication and appointments.",
+  mood: "Emotions, stress, energy and mental wellbeing.",
+  work: "Job, projects, colleagues and career.",
+  education: "Studies, courses and skills being learned.",
+  social: "Friends, events and community.",
+  relationships: "Partner, family and close relationships.",
+  finance: "Income, spending, debts and accounts.",
+  travel: "Trips, places, commutes and whereabouts.",
+  other: "Anything that fits nowhere else.",
 };
 
 export const SENSITIVITY_LABELS: Record<Sensitivity, string> = {
-  low: "Low",
-  moderate: "Moderate",
-  high: "High",
-  restricted: "Restricted",
+  shareable: "Shareable",
+  personal: "Personal",
+  private: "Private",
+  protected: "Protected",
+};
+
+/** What leaking a memory of each tier could cost, with examples. */
+export const SENSITIVITY_DESCRIPTIONS: Record<Sensitivity, string> = {
+  shareable: "Fine for any app to know: tastes, interests, skills, a first name.",
+  personal: "Could be used to profile you: routines, workouts, meals, sleep, schedule.",
+  private: "Could cause emotional or social harm: moods, relationships, family matters.",
+  protected: "Could cause concrete harm: health conditions, money, beliefs, exact location.",
 };

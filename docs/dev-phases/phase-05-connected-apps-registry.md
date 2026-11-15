@@ -197,7 +197,7 @@ Done 2026-11-15.
   - Grants should cascade: they mean nothing without the app.
   - Audit events should use `on delete set null` (with a nullable `app_id`), or apps should be soft-deleted, so the access log outlives the app.
   - Apps are hard-deleted today, so a deleted app's name is gone (backlog).
-- **Use `requireApp` (Phase 07) in handlers, not the DAL's low-level lookups.** `findAppIdentityByKeyHash` and `touchApiKey` are only for `authenticateApp`.
+- **Use `requireApp` (Phase 06) in handlers, not the DAL's low-level lookups.** `findAppIdentityByKeyHash` and `touchApiKey` are only for `authenticateApp`.
 - **One key equals one vault owner.** An external app serving several people needs a key from each person's vault (backlog: a "connect your vault" flow). A demo uses one persona.
 - **External apps call server-to-server.** Keys belong in the calling app's server env, never in browser code. There's deliberately no CORS setup.
 - **Testing actions by hand:**

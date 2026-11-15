@@ -25,17 +25,11 @@ import type { MemoryDTO } from "@/data/memories";
 import {
   CATEGORY_LABELS,
   MEMORY_CATEGORIES,
+  SENSITIVITY_DESCRIPTIONS,
   SENSITIVITY_LABELS,
-  SENSITIVITY_LEVELS,
+  SENSITIVITY_TIERS,
   type Sensitivity,
 } from "@/lib/memory-taxonomy";
-
-const SENSITIVITY_HINTS: Record<Sensitivity, string> = {
-  low: "Everyday details, like a walk or a meal.",
-  moderate: "Personal, but fine for apps you trust with this topic.",
-  high: "Private. Only apps you allow up to “high” can see it.",
-  restricted: "Most private. Withheld unless you grant this level directly.",
-};
 
 // `datetime-local` wants the viewer's wall-clock time, without a timezone.
 function toLocalInputValue(date: Date) {
@@ -149,9 +143,9 @@ export function MemoryForm({ memory, onSaved }: { memory?: MemoryDTO; onSaved: (
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {SENSITIVITY_LEVELS.map(level => (
-                    <SelectItem key={level} value={level}>
-                      {SENSITIVITY_LABELS[level]}
+                  {SENSITIVITY_TIERS.map(tier => (
+                    <SelectItem key={tier} value={tier}>
+                      {SENSITIVITY_LABELS[tier]}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -164,7 +158,9 @@ export function MemoryForm({ memory, onSaved }: { memory?: MemoryDTO; onSaved: (
               />
             ) : (
               <FieldDescription id="memory-sensitivity-hint">
-                {sensitivity ? SENSITIVITY_HINTS[sensitivity] : "How private this memory is."}
+                {sensitivity
+                  ? SENSITIVITY_DESCRIPTIONS[sensitivity]
+                  : "How much harm it would do if it leaked."}
               </FieldDescription>
             )}
           </Field>

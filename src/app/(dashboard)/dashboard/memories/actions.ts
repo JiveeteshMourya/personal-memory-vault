@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { createMemory, deleteMemory, updateMemory } from "@/data/memories";
-import { MEMORY_CATEGORIES, SENSITIVITY_LEVELS } from "@/lib/memory-taxonomy";
+import { MEMORY_CATEGORIES, SENSITIVITY_TIERS } from "@/lib/memory-taxonomy";
 
 const MEMORIES_PATH = "/dashboard/memories";
 
@@ -33,7 +33,7 @@ const memorySchema = z.object({
     .min(1, { error: "Write down the memory." })
     .max(2000, { error: "Use 2,000 characters or fewer." }),
   category: z.enum(MEMORY_CATEGORIES, { error: "Pick a category." }),
-  sensitivity: z.enum(SENSITIVITY_LEVELS, { error: "Pick a sensitivity." }),
+  sensitivity: z.enum(SENSITIVITY_TIERS, { error: "Pick a sensitivity." }),
   // The browser converts the local date and time it shows into an ISO instant before submitting.
   occurredAt: z.iso
     .datetime({ offset: true, error: "Pick a date and time." })

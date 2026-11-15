@@ -46,7 +46,9 @@ Returns the calling app's own access, so it can shape its requests.
 }
 ```
 
-`sources` never names other apps, because which apps the owner uses is private too.
+- `write` and `read` list each granted category with its tier cap, in taxonomy order. An empty list means no access for that operation: a newly connected app gets `[]` for both.
+- Reading also needs an allowed source: `ownEntries` (the owner's own entries), `thisApp` (your own writes) or another app. Every source starts off.
+- `sources` never names other apps, because which apps the owner uses is private too.
 
 ## `POST /memories`: write (Phase 07)
 

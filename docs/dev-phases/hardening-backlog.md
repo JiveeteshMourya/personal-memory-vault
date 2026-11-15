@@ -19,7 +19,7 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P00] No pre-commit hooks — unformatted or broken commits — lefthook/husky running format and lint on staged files.
 - [ ] [P00] Unhandled-error logs include the error `message` and `stack` — a third-party error message (e.g. a DB error quoting a value) could echo user data into logs — redact messages from known sources or log only `name` plus a fingerprint for them.
 - [ ] [P00] With invalid env, a self-hosted `next start` logs the error but keeps the process alive, answering 500 — a process supervisor won't restart or alert — if it's ever deployed, rely on the `/api/v1/health` check, or `process.exit(1)` from `register()` on the Node runtime.
-- [ ] [P00] `validation_error` details use `z.flattenError`, which only reports top-level fields — nested request bodies get vague errors — switch to `z.treeifyError` when an endpoint takes nested input.
+- [x] [P00] `validation_error` details use `z.flattenError`, which only reports top-level fields — nested request bodies get vague errors — switch to `z.treeifyError` when an endpoint takes nested input. Resolved in P06.
 
 ## P01 — UI Shell & Design System
 
@@ -77,6 +77,8 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P06] No grant history (revoking deletes the row) — can't answer "who had access when" — append-only grant change log.
 - [ ] [P06] Audit log is not tamper-evident — a DB-level attacker can rewrite history — hash-chain the events.
 - [ ] [P06] No alerting on unusual denials or access spikes — silent abuse — threshold alerts surfaced in the dashboard.
+- [ ] [P06] `access_events` has no retention — the log grows forever and keeps encrypted queries indefinitely — a retention window (e.g. 90 days) with a scheduled purge.
+- [ ] [P06] Permission changes save instantly with no undo — a misclick grants access at once — an undo action in the toast, or a review-and-save step for widening changes.
 
 ## P07 — AI Ingest, Retract & Semantic Index
 

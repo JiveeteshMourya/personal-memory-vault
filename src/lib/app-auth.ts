@@ -2,6 +2,7 @@ import "server-only";
 import { DrizzleQueryError } from "drizzle-orm";
 import { after } from "next/server";
 import { findAppIdentityByKeyHash, touchApiKey, type AppIdentity } from "@/data/apps";
+import { ApiError } from "@/lib/api-errors";
 import { hashApiKey, isApiKeyFormat } from "@/lib/api-keys";
 import { logger } from "@/lib/logger";
 
@@ -32,5 +33,15 @@ export async function authenticateApp(request: Request): Promise<AppIdentity | n
       });
     }
   });
+  return identity;
+}
+
+/**
+ * The calling app, or a 401 `unauthorized` ApiError for `errorResponse` to answer with. Every
+ * authenticated `/api/v1` handler starts with it.
+ */
+export async function requireApp(request: Request): Promise<AppIdentity> {
+  const identity = await authenticateApp(request);
+  if (!identity) throw new ApiError(401, "unauthorized", "Missing or invalid API key");
   return identity;
 }

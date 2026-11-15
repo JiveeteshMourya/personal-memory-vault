@@ -13,18 +13,18 @@ export function CategoryBadge({ category }: { category: MemoryCategory }) {
   return <Badge variant="outline">{CATEGORY_LABELS[category]}</Badge>;
 }
 
-// Each level leans further into the withheld slate: the more sensitive, the less apps see it.
+// Each tier leans further into the withheld slate: the more harm a leak does, the less apps see it.
 const sensitivityStyles: Record<Sensitivity, string> = {
-  low: "text-muted-foreground",
-  moderate: "border-transparent bg-secondary text-secondary-foreground",
-  high: "border-transparent bg-withheld/15 text-foreground dark:bg-withheld/70",
-  restricted: "border-transparent bg-withheld text-withheld-foreground",
+  shareable: "text-muted-foreground",
+  personal: "border-transparent bg-secondary text-secondary-foreground",
+  private: "border-transparent bg-withheld/15 text-foreground dark:bg-withheld/70",
+  protected: "border-transparent bg-withheld text-withheld-foreground",
 };
 
 export function SensitivityBadge({ sensitivity }: { sensitivity: Sensitivity }) {
   return (
     <Badge variant="outline" className={sensitivityStyles[sensitivity]}>
-      {sensitivity === "restricted" && <LockIcon data-icon="inline-start" />}
+      {sensitivity === "protected" && <LockIcon data-icon="inline-start" />}
       {SENSITIVITY_LABELS[sensitivity]}
     </Badge>
   );

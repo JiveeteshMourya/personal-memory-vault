@@ -69,7 +69,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 - **Crypto:** `encryptField` / `decryptField` from `@/lib/crypto` (server-only).
   - `decryptField` throws on a malformed value, an unknown version, tampering or the wrong key.
   - Its errors never include the value.
-- **Taxonomy:** from `@/lib/memory-taxonomy`, with no imports (safe in client components and schema files):
+- **Taxonomy:** from `@/lib/memory-taxonomy`, with no imports (safe in client components and schema files). **Superseded in Phase 06:** 16 categories, `SENSITIVITY_TIERS` (`shareable` → `protected`) and descriptions; see that phase's contract.
   - `MEMORY_CATEGORIES`, `SENSITIVITY_LEVELS` (ordered low → restricted)
   - `MemoryCategory`, `Sensitivity`
   - `sensitivityRank(level)`, from 0 (low) to 3 (restricted)

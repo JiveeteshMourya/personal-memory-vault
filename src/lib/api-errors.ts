@@ -34,7 +34,8 @@ export function errorResponse(error: unknown): Response {
   }
 
   if (error instanceof z.ZodError) {
-    return errorBody(400, "validation_error", "Invalid request", z.flattenError(error));
+    // A tree, because request bodies nest (e.g. `messages[3].role`).
+    return errorBody(400, "validation_error", "Invalid request", z.treeifyError(error));
   }
 
   logger.error("Unhandled API error", { error });

@@ -34,6 +34,7 @@ bun dev                      # http://localhost:3000
 | `bun run db:generate`  | Generate a SQL migration from the schema (`--name <change>`) |
 | `bun run db:migrate`   | Apply pending migrations (uses `DIRECT_URL`)                 |
 | `bun run db:studio`    | Browse the database in Drizzle Studio                        |
+| `bun run seed:jane`    | Seed ~30 demo memories into an empty account (`[email]`)     |
 
 Health check: `GET /api/v1/health` returns `200 { "status": "ok", "db": "ok" }`, or `503` with
 `"error"` when the database is unreachable.

@@ -1,23 +1,27 @@
-import { ArchiveIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
+import {
+  MemoryList,
+  MemoryListSkeleton,
+} from "@/app/(dashboard)/dashboard/memories/_components/memory-list";
+import { NewMemoryButton } from "@/app/(dashboard)/dashboard/memories/_components/new-memory-button";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Memories" };
 
-export default function MemoriesPage() {
+// The header is static; the list reads the session and the URL's filters, so it streams in.
+export default function MemoriesPage({ searchParams }: PageProps<"/dashboard/memories">) {
   return (
     <>
       <PageHeader
         title="Memories"
-        description="Everything your apps have saved about you, encrypted and sorted by topic."
+        description="What you and your apps have saved about you, encrypted and sorted by topic."
+        actions={<NewMemoryButton />}
       />
-      <EmptyState
-        icon={ArchiveIcon}
-        title="No memories yet"
-        description="Memories your connected apps save, and ones you add yourself, will be listed here."
-      />
+      <Suspense fallback={<MemoryListSkeleton />}>
+        <MemoryList searchParams={searchParams} />
+      </Suspense>
     </>
   );
 }

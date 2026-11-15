@@ -11,6 +11,11 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   // The app's public origin, e.g. http://localhost:3000. Better Auth trusts it for CSRF checks.
   BETTER_AUTH_URL: z.url(),
+  // The AES-256-GCM key for memory content: 32 random bytes, base64. Changing or losing it makes
+  // every stored memory unreadable.
+  MEMORY_ENCRYPTION_KEY: z.base64().refine(value => Buffer.from(value, "base64").length === 32, {
+    error: "Must be 32 bytes, base64-encoded.",
+  }),
 });
 
 const parsed = envSchema.safeParse(process.env);

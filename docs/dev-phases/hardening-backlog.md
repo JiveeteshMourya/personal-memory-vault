@@ -55,6 +55,11 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P04] No key rotation — a compromised key can't be retired — key-version prefix already exists; add a re-encrypt job.
 - [ ] [P04] Key lives in an env var — weak key custody — move it to a KMS or secrets manager.
 - [ ] [P04] Hard delete only — accidental loss — soft delete with a short restore window.
+- [ ] [P04] Ciphertext isn't bound to its row (no AAD) — someone with database write access could swap encrypted content between rows or owners undetected — pass the owner and memory ids as GCM additional authenticated data (changes the `encryptField` contract).
+- [ ] [P04] Offset pagination — deep pages scan every skipped row, and inserts or deletes shift items between pages — keyset pagination on `(occurred_at, id)` (skill rule `data-pagination`).
+- [ ] [P04] Seeded memories are all owner-sourced — the demo can't show app provenance before Phase 15 — reseed with app ids once Phase 05 exists, or rely on Phase 15's simulated apps.
+- [ ] [P04] Dates render in UTC on the server and switch to local time on hydration — a brief flicker; without JS they stay UTC — keep a timezone preference (cookie) and format on the server.
+- [ ] [P04] Memory content is plain text capped at 2,000 characters — long journal entries are rejected — raise the cap, or route long input through Phase 11's raw-input pipeline.
 
 ## P05 — Connected Apps & API Keys
 

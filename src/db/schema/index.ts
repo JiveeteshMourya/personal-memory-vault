@@ -3,3 +3,4 @@
 //   export * from "./<domain>";
 // Schema files use relative imports only, because drizzle-kit loads them outside Next.js.
 export * from "./auth";
+export * from "./memories";

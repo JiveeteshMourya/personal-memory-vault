@@ -13,7 +13,8 @@
     "format:check": "bun fmt --check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed:jane": "bun --conditions=react-server scripts/seed-jane.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

@@ -11,10 +11,10 @@ The owner controls exactly what each connected app may write and read: by **cate
 ## In scope
 
 - **Taxonomy pivot** ([classification-model.md](../classification-model.md)):
-  - `src/lib/memory-taxonomy.ts` gets **16 categories** and the **4 tiers** `shareable < personal < private < protected`, each with a label and a one-line description.
+  - `src/shared/constants/memory-taxonomy.ts` gets **16 categories** and the **4 tiers** `shareable < personal < private < protected`, each with a label and a one-line description.
   - The migration maps existing rows: category `personal → identity`; `low → shareable`, `moderate → personal`, `high → private`, `restricted → protected`. It also regenerates both check constraints.
   - Update the memory badges, filters and form (they read the taxonomy module) and `scripts/seed-jane.ts`, so nothing references the old values.
-- **Grants schema** (`src/db/schema/grants.ts`):
+- **Grants schema** (`src/server/models/grant.model.ts`):
   - `app_grants`:
     - columns: `user_id`, `app_id` → `connected_apps` (cascade), `operation` (`read`\|`write`), `category`, `max_sensitivity`, `created_at`
     - unique on `(app_id, operation, category)`
@@ -22,12 +22,12 @@ The owner controls exactly what each connected app may write and read: by **cate
   - `app_source_access`:
     - columns: `user_id`, `app_id` (the reader, cascade), `source`: "Your entries" or a source app id (cascade)
     - a row means "allowed", and no row means denied
-- **Policy engine** (`src/lib/policy/evaluate-access.ts`, pure, no I/O):
+- **Policy engine** (`src/server/services/access-policy.service.ts`, pure, no I/O):
   - `evaluateAccess({ grants, sources, operation })` returns `AccessScope`: allowed categories with their caps, plus allowed sources.
   - `canWrite(scope, category, sensitivity)`
   - `canRead(scope, memory, readerAppId)`: category cap, allowed source, visibility (`shared` or own), not expired. A memory from a deleted app (source app null) is never readable.
   - **Unit tests:** default deny, read/write independence, the tier cap, source deny/allow, own writes, `app_private`, expiry, orphaned memories.
-- **Grants DAL** (`src/data/grants.ts`):
+- **Grants DAL** (`src/server/services/grant.service.ts`):
   - owner-scoped: `getAppPermissions(appId)`, `setGrant`, `removeGrant`, `setSourceAccess`, `revokeAllForApp`
   - low-level: `getAccessScope(userId, appId, operation)` for the gateway
 - **`/dashboard/permissions`** (replaces the placeholder):
@@ -36,10 +36,10 @@ The owner controls exactly what each connected app may write and read: by **cate
   - **"Reads data from"** switches: Your entries, every connected app, and this app itself
   - **Revoke all**
 - **Gateway:**
-  - `requireApp(request)` in `src/lib/app-auth.ts` throws `ApiError(401, "unauthorized")`.
+  - `requireApp(request)` in `src/server/middlewares/require-app.middleware.ts` throws `ApiError(401, "unauthorized")`.
   - A small `parseBody(request, schema)` helper uses strict zod.
   - `errorResponse` switches `validation_error` details to `z.treeifyError`, since the bodies are nested (closes the P00 backlog item).
-- **Audit** (`src/db/schema/access-events.ts`, `src/data/access-events.ts`):
+- **Audit** (`src/server/models/access-event.model.ts`, `src/server/services/access-event.service.ts`):
   - `access_events` columns:
     - app: `user_id`, `app_id` (`on delete set null`), `app_name` (a snapshot, so the log outlives the app)
     - request: `action` (`write`\|`retract`\|`context`\|`consent`), `channel` (`api`\|`playground`), `outcome` (`allowed`\|`partial`\|`denied`)
@@ -51,23 +51,23 @@ The owner controls exactly what each connected app may write and read: by **cate
 
 ## Contract provided
 
-- **Taxonomy** (`@/lib/memory-taxonomy`, no imports):
+- **Taxonomy** (`@/shared/constants/memory-taxonomy`, no imports):
   - `MEMORY_CATEGORIES` (16) and `SENSITIVITY_TIERS` (ordered `shareable` → `protected`), with `sensitivityRank(tier)` (0–3)
   - `CATEGORY_LABELS` / `CATEGORY_DESCRIPTIONS` and `SENSITIVITY_LABELS` / `SENSITIVITY_DESCRIPTIONS`
   - `MEMORY_VISIBILITIES` (`shared`, `app_private`) and `Visibility`: Phase 07 adds the column from this list
-- **Policy** (`@/lib/policy/evaluate-access`, pure):
+- **Policy** (`@/server/services/access-policy.service`, pure):
   - `evaluateAccess({ grants, sources, operation })` returns `AccessScope = { operation, categories: CategoryCap[], sources: { ownEntries, appIds } }`. Categories come in taxonomy order; a write scope's sources are always empty.
   - `canWrite(scope, category, sensitivity)`
   - `canRead(scope, memory: ReadableMemory, readerAppId, now?)`. `ReadableMemory` **requires** `visibility` and `expiresAt`, so Phase 07's `MemoryDTO` must carry both before Phase 08 can pass it.
   - Types: `CategoryCap`, `Grant`, `AccessSource`. Decisions apply **before** retrieval.
-- **Schema** (`@/db/schema`): `appGrants`, `appSourceAccess`, `accessEvents`, `GRANT_OPERATIONS`, `ACCESS_ACTIONS` / `ACCESS_CHANNELS` / `ACCESS_OUTCOMES`.
+- **Schema** (`@/server/models`): `appGrants`, `appSourceAccess`, `accessEvents`, `GRANT_OPERATIONS`, `ACCESS_ACTIONS` / `ACCESS_CHANNELS` / `ACCESS_OUTCOMES`.
 - **DAL:**
-  - `@/data/grants`, owner-scoped: `getAppPermissions`, `setGrant`, `removeGrant`, `setSourceAccess`, `revokeAllForApp`. The writes return `false` when the app isn't the owner's.
-  - `@/data/grants`, low-level: `getAccessScope(userId, appId, operation)`.
-  - `@/data/access-events`: `recordAccess({ app, action, channel, outcome, purpose?, query?, categories?, memoryIds?, withheldCount?, sessionId? })` and the owner-scoped `listAccessEvents(page)` (20 per page, decrypted).
+  - `@/server/services/grant.service`, owner-scoped: `getAppPermissions`, `setGrant`, `removeGrant`, `setSourceAccess`, `revokeAllForApp`. The writes return `false` when the app isn't the owner's.
+  - `@/server/services/grant.service`, low-level: `getAccessScope(userId, appId, operation)`.
+  - `@/server/services/access-event.service`: `recordAccess({ app, action, channel, outcome, purpose?, query?, categories?, memoryIds?, withheldCount?, sessionId? })` and the owner-scoped `listAccessEvents(page)` (20 per page, decrypted).
 - **Gateway:**
-  - `requireApp(request): Promise<AppIdentity>` (`@/lib/app-auth`) throws a 401 `unauthorized`.
-  - `parseBody(request, schema)` (`@/lib/parse-body`): pass a `z.strictObject`.
+  - `requireApp(request): Promise<AppIdentity>` (`@/server/middlewares/require-app.middleware`) throws a 401 `unauthorized`.
+  - `parseBody(request, schema)` (`@/server/middlewares/validate-body.middleware`): pass a `z.strictObject`.
   - Errors go through `errorResponse`, with `validation_error` details from `z.treeifyError`.
 
 ## Acceptance

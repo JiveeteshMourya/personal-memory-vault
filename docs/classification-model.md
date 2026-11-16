@@ -2,7 +2,7 @@
 
 Every memory in the vault carries labels that decide who may ever see it. This is the vault's core idea. Apps write free text and ask free-form questions, and the vault classifies, filters and projects. The owner controls the result from the dashboard.
 
-The labels live in `src/lib/memory-taxonomy.ts` (Phase 06), and the access rules live in the policy engine `src/lib/policy/evaluate-access.ts`.
+The labels live in `src/shared/constants/memory-taxonomy.ts` (Phase 06), and the access rules live in the policy engine `src/server/services/access-policy.service.ts`.
 
 ## The labels on every memory
 

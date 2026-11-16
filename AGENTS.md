@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Project workflow
 
-- **Start here:** [docs/dev-phases/phase-index.md](docs/dev-phases/phase-index.md). Development is split into loosely coupled phases, one per fresh agent session. Follow the index's session protocol, its conventions (standard Next.js: Data Access Layer + Server Actions + Route Handlers), and the Decisions Log.
+- **Start here:** [docs/dev-phases/phase-index.md](docs/dev-phases/phase-index.md). Development is split into loosely coupled phases, one per fresh agent session. Follow the index's session protocol, its conventions (layered: `src/server` models → repository → services, with middlewares and controllers; `src/client` features and components; `src/shared` constants, types and validators; `src/app` for routing only), and the Decisions Log.
 - **Ask before adding libraries.** The libraries for the remaining phases are already decided in the index's Decisions Log ([Sprint mode](docs/dev-phases/phase-index.md#sprint-mode-until-the-2026-11-17-demo)). Ask the user before adding anything not listed there.
 - **The vault is platform-agnostic.** It serves any GenAI app through [docs/public-api.md](docs/public-api.md), under the rules in [docs/classification-model.md](docs/classification-model.md). Never shape it around a specific connected app.
 - **Keep agent tooling lean.** Every installed skill, plugin and MCP server costs context in every session, used or not. Follow the index's [Agent tooling](docs/dev-phases/phase-index.md#agent-tooling) rules:

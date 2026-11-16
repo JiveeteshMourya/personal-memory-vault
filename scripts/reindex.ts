@@ -3,55 +3,17 @@
 // `bun run reindex` after seeding (the seed writes rows directly, without indexing), after wiping the
 // Qdrant volume, or whenever the index may have drifted. Logs counts only, never content.
 
-import { asc, eq } from "drizzle-orm";
-import type { MemoryAnnotations, MemoryDTO } from "@/data/memories";
-import { clearIndex, indexMemories, type IndexableMemory } from "@/data/memory-index";
-import { memories, users } from "@/db/schema";
-import { decryptField } from "@/lib/crypto";
-import { db } from "@/lib/db";
-
-async function memoriesOf(userId: string): Promise<IndexableMemory[]> {
-  // Reads the rows itself: the memories DAL imports the session helpers, which need Next.js.
-  const rows = await db
-    .select({
-      id: memories.id,
-      contentEncrypted: memories.contentEncrypted,
-      annotationsEncrypted: memories.annotationsEncrypted,
-      category: memories.category,
-      sensitivity: memories.sensitivity,
-      sourceType: memories.sourceType,
-      sourceAppId: memories.sourceAppId,
-      visibility: memories.visibility,
-      occurredAt: memories.occurredAt,
-      importance: memories.importance,
-      confidence: memories.confidence,
-      expiresAt: memories.expiresAt,
-    })
-    .from(memories)
-    .where(eq(memories.userId, userId))
-    .orderBy(asc(memories.createdAt));
-
-  return rows.map(({ contentEncrypted, annotationsEncrypted, sourceType, sourceAppId, ...row }) => {
-    const annotations = annotationsEncrypted
-      ? (JSON.parse(decryptField(annotationsEncrypted)) as MemoryAnnotations)
-      : null;
-    const source: MemoryDTO["source"] =
-      sourceType === "app" ? { type: "app", appId: sourceAppId } : { type: "user" };
-    return {
-      ...row,
-      content: decryptField(contentEncrypted),
-      source,
-      tags: annotations?.tags ?? [],
-    };
-  });
-}
+import { db } from "@/server/lib/db";
+import { users } from "@/server/models";
+import { clearIndex, indexMemories } from "@/server/repository/memory-index.repository";
+import { listAllMemories } from "@/server/repository/memory.repository";
 
 async function reindex() {
   const accounts = await db.select({ id: users.id }).from(users);
   let total = 0;
   for (const { id } of accounts) {
     await clearIndex(id);
-    const owned = await memoriesOf(id);
+    const owned = await listAllMemories(id);
     await indexMemories(id, owned);
     total += owned.length;
     console.log(`Indexed ${owned.length} memories for account ${id}.`);

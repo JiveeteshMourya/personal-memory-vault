@@ -8,7 +8,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 ## Coupling boundary
 
-- **Owns:** `src/lib/crypto.ts`, `src/lib/memory-taxonomy.ts`, the `memories` table and migration, `src/data/memories.ts`, the `/dashboard/memories` page and its Server Actions, the Jane seed script.
+- **Owns:** `src/server/lib/crypto.ts`, `src/shared/constants/memory-taxonomy.ts`, the `memories` table and migration, `src/server/services/memory.service.ts`, the `/dashboard/memories` page and its Server Actions, the Jane seed script.
 - **Must not:** know about permissions, connected-app auth or AI. `source_app_id` is just a nullable column; Phase 05 owns its FK to `connected_apps`.
 - **Later changes by other phases:** Phase 06 changes the taxonomy. Phase 07 adds index-sync calls to this DAL's write functions and reuses `insertMemory`.
 
@@ -31,10 +31,10 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 ## In scope (MVP slice)
 
-- `src/lib/crypto.ts`:
+- `src/server/lib/crypto.ts`:
   - `encryptField(plaintext)` returns `"v1:<iv>:<tag>:<ciphertext>"`; `decryptField(value)` reverses it.
   - Unit tests: round trip, tampered ciphertext fails, wrong key fails.
-- `src/lib/memory-taxonomy.ts`: the `MEMORY_CATEGORIES` and `SENSITIVITY_LEVELS` constants, types, a `sensitivityRank()` helper, and display labels.
+- `src/shared/constants/memory-taxonomy.ts`: the `MEMORY_CATEGORIES` and `SENSITIVITY_LEVELS` constants, types, a `sensitivityRank()` helper, and display labels.
 - `memories` table:
   - `id`, `user_id`
   - `content_encrypted`
@@ -42,7 +42,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
   - `source_type` (`user` | `app`), `source_app_id` (nullable)
   - `occurred_at`, `created_at`, `updated_at`
   - **No plaintext content or summaries anywhere.**
-- `src/data/memories.ts` (server-only):
+- `src/server/services/memory.service.ts` (server-only):
   - Owner-scoped functions through `requireUser()`: `listMemories(filters)` (category, sensitivity, source; simple pagination), `getMemory(id)`, `createMemory(input)`, `updateMemory(id, input)`, `deleteMemory(id)`. They return decrypted DTOs only to the owner.
   - Low-level `insertMemory(userId, input, source)` and `getMemoriesByIds(userId, ids)`. These are **not** session-checked; they're documented as "only call after authorization" and used by the gateway phases.
 - `/dashboard/memories`:
@@ -66,15 +66,15 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
 
 ## Contract provided
 
-- **Crypto:** `encryptField` / `decryptField` from `@/lib/crypto` (server-only).
+- **Crypto:** `encryptField` / `decryptField` from `@/server/lib/crypto` (server-only).
   - `decryptField` throws on a malformed value, an unknown version, tampering or the wrong key.
   - Its errors never include the value.
-- **Taxonomy:** from `@/lib/memory-taxonomy`, with no imports (safe in client components and schema files). **Superseded in Phase 06:** 16 categories, `SENSITIVITY_TIERS` (`shareable` → `protected`) and descriptions; see that phase's contract.
+- **Taxonomy:** from `@/shared/constants/memory-taxonomy`, with no imports (safe in client components and schema files). **Superseded in Phase 06:** 16 categories, `SENSITIVITY_TIERS` (`shareable` → `protected`) and descriptions; see that phase's contract.
   - `MEMORY_CATEGORIES`, `SENSITIVITY_LEVELS` (ordered low → restricted)
   - `MemoryCategory`, `Sensitivity`
   - `sensitivityRank(level)`, from 0 (low) to 3 (restricted)
   - `CATEGORY_LABELS`, `SENSITIVITY_LABELS` (sentence case, for UIs)
-- **Types and functions** from `@/data/memories`:
+- **Types and functions** from `@/server/services/memory.service`:
   - **`MemorySource`** `= { type: "user" } | { type: "app"; appId: string | null }`. `appId` is null once the app that wrote the memory is deleted (Phase 05: `ON DELETE SET NULL`); the memory stays the owner's.
   - **`MemoryDTO`** `= { id, content, category, sensitivity, source: MemorySource, occurredAt: Date, createdAt: Date }`
   - **`MemoryInput`** `= { content, category, sensitivity, occurredAt?: Date }`. `occurredAt` defaults to now.
@@ -88,7 +88,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
   - **Low-level (not session-checked; the caller must have authorized the access):**
     - `insertMemories(userId, inputs, source)` returns `MemoryDTO[]` (one multi-row insert; Phase 07 made it a batch, it was `insertMemory`). `source` is `{ type: "user" } | { type: "app"; appId: string }` (never a null app id).
     - `getMemoriesByIds(userId, ids)` returns `MemoryDTO[]` **in the order of `ids`**, so a relevance ranking survives. Ids that are missing or belong to someone else are left out.
-- **Schema:** `memories` and `MEMORY_SOURCE_TYPES` from `@/db/schema`.
+- **Schema:** `memories` and `MEMORY_SOURCE_TYPES` from `@/server/models`.
 
 ## Deliverables
 
@@ -111,16 +111,16 @@ Done 2026-11-15.
 
 - **No new npm dependencies.** One new shadcn primitive, `alert-dialog` (Base UI). `button.tsx` was kept, not overwritten (see Phase 01's local edits).
 - **Env:** `MEMORY_ENCRYPTION_KEY` is validated in `env.ts` as base64 decoding to exactly 32 bytes. It is documented in `.env.example` and given a placeholder in `test/setup.ts`.
-- **Crypto (`src/lib/crypto.ts`):**
+- **Crypto (`src/server/lib/crypto.ts`):**
   - AES-256-GCM with a random 12-byte IV per call and the 16-byte auth tag.
   - Each part is base64, joined as `v1:<iv>:<tag>:<ciphertext>`.
   - The key is decoded once at import.
-- **Schema (`src/db/schema/memories.ts`, `drizzle/0002_memories.sql`):**
+- **Schema (`src/server/models/memory.model.ts`, `drizzle/0002_memories.sql`):**
   - The columns above, with a cascading FK to `users`.
   - Check constraints for category and sensitivity. Their value lists are inlined from the taxonomy module through `sql.raw`.
   - `memories_source_check`: `user` ⇒ no app id; `app` ⇒ an app id. It also rejects any other `source_type`.
   - One index, `memories_user_id_occurred_at_idx` on `(user_id, occurred_at desc, id desc)`. It serves the FK and the list's filter and order.
-- **DAL (`src/data/memories.ts`):**
+- **DAL (`src/server/services/memory.service.ts`):**
   - Every owner function starts with `requireUser()` and filters by `user_id` in the same `where` as the id, so there's no read-then-check.
   - Selects and `returning` use an explicit column set without `user_id`.
   - `toDTO` decrypts. Only ciphertext ever reaches Drizzle, so a `DrizzleQueryError`'s params can't leak plaintext.
@@ -134,7 +134,7 @@ Done 2026-11-15.
   - `page.tsx` is the static shell: the header with "New memory", plus `<Suspense fallback={<MemoryListSkeleton/>}>`.
   - `MemoryList` (a server component) parses `searchParams` with zod, dropping invalid values, then calls `listMemories`.
   - It renders the filters, the table (columns fold into the content cell below `md`), Newer/Older links, and three empty states (none yet, no match, page out of range).
-- **Client components (`_components/`):**
+- **Client components (`src/client/features/memories/`):**
   - `MemoryFilters`: Base UI Selects → `router.replace` in a transition, with `useOptimistic`. The list dims via `group-has-data-pending/list`.
   - `MemoryForm`: used by `NewMemoryButton` and the edit dialog in `MemoryRowActions`.
   - `MemoryRowActions`: edit, and delete through an `AlertDialog`.
@@ -185,10 +185,7 @@ Done 2026-11-15.
 **Gotchas for later phases:**
 
 - **The key is the data.** Losing or changing `MEMORY_ENCRYPTION_KEY` makes every memory unreadable: `decryptField` throws, and the list page errors. Restart `bun dev` after setting it, since env is validated at startup. Rotation needs a `v2` key plus a re-encrypt job (backlog).
-- **Scripts can't import `@/data/memories`.**
-  - It imports `@/data/auth` → `next/navigation`, which crashes under `bun --conditions=react-server` (React's server build has no `createContext`).
-  - Scripts use `encryptField` + `db` directly, as the seed does.
-  - The same applies to any DAL module that imports `@/data/auth`.
+- **Scripts use repositories, not services or middlewares.** Repositories never read the session, so they run under `bun --conditions=react-server`; `require-user.middleware` imports `next/navigation`, which crashes there (React's server build has no `createContext`). The seed writes rows with `encryptField` + `db` in one transaction with `--reset`; `reindex` uses `listAllMemories`.
 - **Phase 07 hook points:**
   - `createMemory` goes through `insertMemory`, so index on `insertMemory`, `updateMemory` and `deleteMemory`.
   - `deleteMemory` returns only a boolean; it has the id already.

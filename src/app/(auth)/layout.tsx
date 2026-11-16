@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { RedirectIfSignedIn } from "@/app/(auth)/_components/redirect-if-signed-in";
-import { Logo } from "@/components/logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { RedirectIfSignedIn } from "@/client/features/auth/redirect-if-signed-in";
+import { Logo } from "@/client/components/logo";
+import { ThemeToggle } from "@/client/components/theme-toggle";
 
 // Sign-in and sign-up: the brand, the theme toggle and one centered card. The proxy only guards
 // /dashboard; sending signed-in owners away from these pages needs a real session check (a stale

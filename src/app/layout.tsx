@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
 
-import { ThemeSync } from "@/components/theme-sync";
-import { Toaster } from "@/components/ui/toast";
-import { themeInitScript } from "@/lib/theme";
+import { ThemeSync } from "@/client/components/theme-sync";
+import { Toaster } from "@/client/components/ui/toast";
+import { themeInitScript } from "@/client/lib/theme";
 
 import "./globals.css";
 

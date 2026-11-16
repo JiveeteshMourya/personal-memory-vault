@@ -8,7 +8,7 @@ Turn the create-next-app scaffold into the skeleton every later phase builds on.
 
 ## Coupling boundary
 
-- **Owns:** `src/lib/env.ts`, `src/instrumentation.ts`, `src/lib/logger.ts`, `src/lib/api-errors.ts`, `GET /api/v1/health`, the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
+- **Owns:** `src/server/lib/env.ts`, `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/middlewares/error-handler.middleware.ts`, `GET /api/v1/health`, the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
 - **Must not:** add a database, auth, or any visual design. Phase 01 owns the look; leave a plain placeholder home page.
 - Create folders only when a file goes in them. The layout follows the **Conventions** table in [phase-index.md](phase-index.md).
 
@@ -29,13 +29,13 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 
 ## In scope (MVP slice)
 
-- `src/lib/env.ts`:
+- `src/server/lib/env.ts`:
   - Parse `process.env` with a schema and export a typed `env`.
   - Fail fast with a readable message listing the missing or invalid vars.
   - Server-only.
 - `src/instrumentation.ts`: `register()` imports `env`, so validation runs when the server starts, not on first use.
-- `src/lib/logger.ts`: `logger.info/warn/error(message, meta?)`. **Never log memory content or secrets.**
-- `src/lib/api-errors.ts`:
+- `src/server/lib/logger.ts`: `logger.info/warn/error(message, meta?)`. **Never log memory content or secrets.**
+- `src/server/middlewares/error-handler.middleware.ts`:
   - `ApiError` class `(status, code, message, details?)`.
   - `errorResponse(error: unknown): Response` maps `ApiError`, validation errors and unknown errors to `Response.json({ error: { code, message, details? } }, { status })`.
   - Unknown errors are logged and returned as a generic 500.
@@ -53,9 +53,9 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 
 ## Contract provided
 
-- `import { env } from "@/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **Every later phase adds its vars to the schema and to `.env.example`.**
-- `import { logger } from "@/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, code?, stack }` only. `code` is kept only when it's a string: a system code or Postgres SQLSTATE, never data.
-- `import { ApiError, errorResponse } from "@/lib/api-errors"`. Every route handler wraps its body in `try { … } catch (e) { return errorResponse(e) }`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
+- `import { env } from "@/server/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **Every later phase adds its vars to the schema and to `.env.example`.**
+- `import { logger } from "@/server/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, code?, stack }` only. `code` is kept only when it's a string: a system code or Postgres SQLSTATE, never data.
+- `import { ApiError, errorResponse } from "@/server/middlewares/error-handler.middleware"`. Every route handler wraps its body in `try { … } catch (e) { return errorResponse(e) }`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
   - `new ApiError(status, code, message, details?)`. Codes are snake_case strings (`unauthorized`, `forbidden`, `not_found`, …).
   - A thrown `ZodError` becomes `400 validation_error` with `details = z.flattenError(error)`. Handlers can `schema.parse(body)` and let it throw.
   - Anything else becomes a logged `500 internal_error` with the generic message `"Something went wrong"`.
@@ -65,7 +65,7 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 
 ## Deliverables
 
-`src/lib/env.ts` (+ test), `src/instrumentation.ts`, `src/lib/logger.ts`, `src/lib/api-errors.ts` (+ test), `src/app/api/v1/health/route.ts`, `test/setup.ts`, `.env.example`, updated `package.json` and `bunfig.toml`, `README.md`, `.gitignore`, a cleaned `src/app/page.tsx`.
+`src/server/lib/env.ts` (+ test), `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/middlewares/error-handler.middleware.ts` (+ test), `src/app/api/v1/health/route.ts`, `test/setup.ts`, `.env.example`, updated `package.json` and `bunfig.toml`, `README.md`, `.gitignore`, a cleaned `src/app/page.tsx`.
 
 ## Acceptance criteria & verification
 

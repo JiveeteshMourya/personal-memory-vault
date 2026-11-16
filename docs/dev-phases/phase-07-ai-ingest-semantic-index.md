@@ -10,19 +10,19 @@ Any connected app can send **free text or a conversation** with rich optional hi
 
 ## In scope
 
-- **Env** (`src/lib/env.ts`, `.env.example`):
+- **Env** (`src/server/lib/env.ts`, `.env.example`):
   - `OPENAI_API_KEY`
   - `OPENAI_MODEL` (default `gpt-6-luna`, picked at phase start: OpenAI's current small model for high-volume work)
   - `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`, called with `dimensions: 1536`)
   - `QDRANT_URL` (default `http://127.0.0.1:6333`), `QDRANT_COLLECTION` (default `memories`)
-- **Memories schema** (migration `0005` on `src/db/schema/memories.ts`):
+- **Memories schema** (migration `0005` on `src/server/models/memory.model.ts`):
   - plaintext filter fields: `provenance`, `confidence`, `importance`, `expires_at`, `visibility` (values from `MEMORY_VISIBILITIES` in the taxonomy module), `session_id`, `external_id`
   - DB defaults describe an owner's own entry (`user_stated`, 1, 3, `shared`), so existing rows and the seed stay valid
   - `external_id` and `session_id` get partial indexes per `source_app_id`. `external_id` is **not unique**: one extract request yields several memories that share it.
   - `annotations_encrypted` holds `{ tags, entities, contentType, domain }`, encrypted like content
   - Extend `MemoryDTO` and `getMemoriesByIds`; `insertMemory` becomes the batch `insertMemories` (one multi-row insert: all or none). `MemoryDTO` carries `visibility` and `expiresAt`, which the policy engine's `canRead` requires. The memories page shows the new fields on one muted line.
-- **Taxonomy** (`src/lib/memory-taxonomy.ts`): `MEMORY_PROVENANCES` + `PROVENANCE_LABELS`, `MEMORY_CONTENT_TYPES`, `MEMORY_ENTITY_TYPES`, `MemoryEntity`.
-- **AI** (`src/lib/ai.ts`, a lazy client):
+- **Taxonomy** (`src/shared/constants/memory-taxonomy.ts`): `MEMORY_PROVENANCES` + `PROVENANCE_LABELS`, `MEMORY_CONTENT_TYPES`, `MEMORY_ENTITY_TYPES`, `MemoryEntity`.
+- **AI** (`src/server/lib/ai.ts`, a lazy client):
   - **`extractMemories(input)`** returns `{ content, category, sensitivity, tags, entities, importance, confidence, occurredAt, expiresAt }[]`. Responses API, `zodTextFormat` (zod 4 works with the SDK's helper), `reasoning.effort: "low"`, `store: false`. The prompt rules:
     - atomic, self-contained, third person, in English, with absolute dates (resolved from `occurredAt` and `timezone`)
     - the assistant's claims in `messages` get low confidence
@@ -33,16 +33,16 @@ Any connected app can send **free text or a conversation** with rich optional hi
   - **`embed(texts)`**
   - Every OpenAI call logs one `LLM call` line: operation, model, counts, tokens, duration. Never content.
 - **Qdrant** (the `qdrant` service in `docker-compose.yml`, port bound to localhost, telemetry off, data in the `qdrant_data` volume):
-  - `src/lib/qdrant.ts` (lazy) creates the collection if it's missing (1536, cosine) with a tenant keyword index on `userId`
-- **Index DAL** (`src/data/memory-index.ts`):
+  - `src/server/lib/qdrant.ts` (lazy) creates the collection if it's missing (1536, cosine) with a tenant keyword index on `userId`
+- **Index DAL** (`src/server/repository/memory-index.repository.ts`):
   - `indexMemories`, `removeFromIndex`, `searchMemoryIds(userId, { vector, scope, readerAppId, timeRange?, topK })`
   - one collection for every account; each point is a memory (id = memory id) and **every search and delete filters on its `userId` payload**, which keeps accounts apart
   - writes use `wait: true`, so a memory is searchable as soon as the call returns
   - payload: `userId`, `category`, `sensitivityRank`, `source` (`"user"` or the app id), `visibility`, `occurredAt`, `importance`, `confidence`, `expiresAt` (epoch ms; left out when null). **Never content.**
   - The embedded text is the content plus tags. Memories of a deleted app aren't indexed.
-- **Sync:** owner create, update and delete in `src/data/memories.ts` also update the index. A sync failure logs a `warn` with the memory id and the error's name and status only.
+- **Sync:** owner create, update and delete in `src/server/services/memory.service.ts` also update the index. A sync failure logs a `warn` with the memory id and the error's name and status only.
 - **`scripts/reindex.ts`** (`bun run reindex`): per account, clears its points (`clearIndex`), then decrypts, embeds and upserts every memory. Run it after seeding, or to repair drift.
-- **`POST /api/v1/memories`** follows [public-api.md](../public-api.md); the flow lives in `ingestMemories` (`src/data/ingest.ts`):
+- **`POST /api/v1/memories`** follows [public-api.md](../public-api.md); the flow lives in `ingestMemories` (`src/server/services/ingest.service.ts`):
   1. `requireApp`, then a strict body parse
   2. the write scope. With none, record a `denied` event and **403 `write_denied` before any LLM call**
   3. an `externalId` already seen → `duplicates: 1`, no LLM call
@@ -57,8 +57,8 @@ Any connected app can send **free text or a conversation** with rich optional hi
 
 ## Contract provided
 
-- **AI:** `extractMemories`, `embed`, `EMBEDDING_DIMENSIONS` and the lazy `openai()` client from `@/lib/ai` (Phase 08 adds its projection call next to them).
-- **Index:** from `@/data/memory-index`:
+- **AI:** `extractMemories`, `embed`, `EMBEDDING_DIMENSIONS` and the lazy `openai()` client from `@/server/lib/ai` (Phase 08 adds its projection call next to them).
+- **Index:** from `@/server/repository/memory-index.repository`:
   - `searchMemoryIds(userId, { vector, scope, readerAppId, timeRange?, topK })` returns `{ id, score }[]`, best first. Pass the reader's read `AccessScope` **narrowed** to the request (effective categories, origin-filtered sources). It also matches the reader's own `app_private` memories, skips expired ones, and returns `[]` without searching when the scope is empty. Still re-check `canRead` on every fetched row.
   - `indexMemories(userId, memories)` and `removeFromIndex(userId, ids)`.
 - **Memories:** `MemoryDTO` gains `provenance`, `confidence`, `importance`, `expiresAt`, `visibility`, `sessionId`, `tags` and `entities`. Low-level `insertMemories`, `hasExternalId` and `deleteAppMemories`.
@@ -94,7 +94,7 @@ Done 2026-11-16.
   - `recordAccess` returns the event id, which is the API's `requestId`. Phase 08 should do the same.
   - `searchMemoryIds` takes a **narrowed read scope** plus `readerAppId` (not separate `sources` and `visibility`) and returns `{ id, score }[]`.
   - `external_id` is indexed but **not unique**.
-- **Ingest guarantees** (`src/data/ingest.ts`):
+- **Ingest guarantees** (`src/server/services/ingest.service.ts`):
   - 403 and duplicates are answered before any AI call.
   - If indexing fails, the new rows are deleted again (502), so "stored" means searchable.
   - Withheld items carry `no_write_grant` or `sensitivity_above_cap`.

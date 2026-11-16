@@ -8,7 +8,7 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 
 ## Coupling boundary
 
-- **Owns:** `src/lib/db.ts`, `drizzle.config.ts`, the schema barrel `src/db/schema/index.ts`, the migration scripts, `docker-compose.yml`, the DB health check (`src/data/health.ts`).
+- **Owns:** `src/server/lib/db.ts`, `drizzle.config.ts`, the schema barrel `src/server/models/index.ts`, the migration scripts, `docker-compose.yml`, the DB health check (`src/server/services/health.service.ts`).
 - **Must not:** create feature tables. Each feature phase adds its own schema file and migration.
 
 ## Decisions (made with the user, 2026-11-14)
@@ -30,8 +30,8 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 ## In scope (MVP slice)
 
 - `docker-compose.yml` with the local Postgres service (named volume, healthcheck), plus `.env.local` values pointing at it.
-- `src/lib/db.ts`: one lazily connecting client, safe across dev hot reloads. Server-only.
-- `drizzle.config.ts`, the schema barrel `src/db/schema/index.ts`, SQL migrations in `drizzle/`, and the `package.json` scripts `db:generate`, `db:migrate` and `db:studio`.
+- `src/server/lib/db.ts`: one lazily connecting client, safe across dev hot reloads. Server-only.
+- `drizzle.config.ts`, the schema barrel `src/server/models/index.ts`, SQL migrations in `drizzle/`, and the `package.json` scripts `db:generate`, `db:migrate` and `db:studio`.
 - `DATABASE_URL` added to the env schema; `DATABASE_URL` and `DIRECT_URL` added to `.env.example`.
 - Extend `GET /api/v1/health` to include `db: "ok" | "error"` via a trivial query.
 - A short "How a phase adds a table" section in the handoff notes: where the schema goes, how to generate and apply a migration, and how a DAL module imports `db`.
@@ -42,16 +42,16 @@ Connect the app to Supabase PostgreSQL through an ORM, with a migration workflow
 
 ## Contract provided
 
-- `import { db } from "@/lib/db"` gives the Drizzle client (postgres.js driver). Import it **only** from `src/data/*` (the DAL) and scripts, never from components or route handlers directly.
-- Tables live in `src/db/schema/<domain>.ts` and are re-exported from `src/db/schema/index.ts`. DAL modules import them from `@/db/schema`.
+- `import { db } from "@/server/lib/db"` gives the Drizzle client (postgres.js driver). Import it **only** from repositories (`src/server/repository/*`) and scripts, never from services, controllers or components.
+- Tables live in `src/server/models/<entity>.model.ts` and are re-exported from `src/server/models/index.ts`. Repositories import them from `@/server/models`.
 - Migrations: `bun run db:generate --name <change>` writes SQL to `drizzle/`, and `bun run db:migrate` applies it. The rule: **tables are created only through migrations owned by the feature phase** (never `drizzle-kit push`).
 - IDs are UUIDs; timestamps are `timestamptz`; every user-owned table has a `user_id uuid` column, an FK to Phase 03's `users.id`. Column names are explicit snake_case.
-- `import { checkDatabase } from "@/data/health"`: `() => Promise<"ok" | "error">`. It never throws.
+- `import { checkDatabase } from "@/server/services/health.service"`: `() => Promise<"ok" | "error">`. It never throws.
 - `GET /api/v1/health` returns `200 { status: "ok", db: "ok" }`, or `503 { status: "error", db: "error" }` when the database is unreachable.
 
 ## Deliverables
 
-`docker-compose.yml`, `src/lib/db.ts`, `drizzle.config.ts`, the schema barrel, migration scripts, `src/data/health.ts`, the updated health route, env vars, handoff notes.
+`docker-compose.yml`, `src/server/lib/db.ts`, `drizzle.config.ts`, the schema barrel, migration scripts, `src/server/services/health.service.ts`, the updated health route, env vars, handoff notes.
 
 ## Acceptance criteria & verification
 
@@ -67,16 +67,16 @@ Done 2026-11-14.
 
 - **Libraries:** `drizzle-orm` 0.45.4, `postgres` 3.4.9, `drizzle-kit` 0.31.11 (dev). Bun blocks esbuild's postinstall (it isn't trusted), but drizzle-kit runs fine on esbuild's prebuilt `@esbuild/win32-x64` package, so `trustedDependencies` is unchanged.
 - **Local DB:** `docker-compose.yml` runs `postgres:17-alpine` with database `memory_vault` and user/password `postgres`/`postgres` (dev only). The port is bound to `127.0.0.1:5432`, with the named volume `postgres_data` and a `pg_isready` healthcheck.
-- **Client:** `src/lib/db.ts` exports `db = drizzle({ client, schema })`.
+- **Client:** `src/server/lib/db.ts` exports `db = drizzle({ client, schema })`.
   - The postgres.js client is created with `prepare: false` and connects lazily.
   - Outside production it is cached on `globalThis`, so dev reloads reuse one pool.
 - **Schema and migrations:**
   - `drizzle.config.ts` reads `DIRECT_URL`. It loads `.env.local` itself with Node's `process.loadEnvFile`, because `bun run` doesn't pass `.env.local` on to drizzle-kit (which runs on Node).
-  - `src/db/schema/index.ts` is the empty barrel.
+  - `src/server/models/index.ts` is the empty barrel.
   - `drizzle/0000_init.sql` is an intentionally empty baseline (a drizzle-kit `--custom` migration). It gives drizzle-kit a journal, so `bun run db:migrate` works on a fresh clone. Without it, drizzle-kit fails for lack of `meta/_journal.json`. The first real migration is Phase 03's `0001_auth`.
   - `bunfig.toml` excludes `drizzle/` from `bun fmt`.
 - **Env:** `DATABASE_URL` is validated as a `postgres://` or `postgresql://` URL. `test/setup.ts` supplies a placeholder so tests can import `env` without a database.
-- **Health:** `src/data/health.ts` (`checkDatabase`) and the route return 200 or 503.
+- **Health:** `src/server/services/health.service.ts` (`checkDatabase`) and the route return 200 or 503.
   - On failure it logs one `warn` with the driver error (Drizzle's `.cause`), not Drizzle's wrapper, whose message holds the SQL and params.
 - **Logger:** `Error` values now also keep a string `code` (`ECONNREFUSED`, a Postgres SQLSTATE such as `28P01`). Before this, a refused connection logged an empty message. The Phase 00 contract is updated.
 - **Tooling:** the `supabase-postgres-best-practices` skill.
@@ -94,14 +94,14 @@ Done 2026-11-14.
 - **Health with a bad URL:** `503 {"status":"error","db":"error"}`.
   - With a wrong port, it logged `code ECONNREFUSED`.
   - With a wrong password, it logged `PostgresError` with `code 28P01`.
-- **Hot reload:** after 5 edits that re-ran `src/lib/db.ts`, `pg_stat_activity` still showed 1 connection.
-- **Scripts:** a script importing `@/lib/db` ran an insert and a `db.query` findMany under `bun --conditions=react-server`. Without the flag, `server-only` throws.
+- **Hot reload:** after 5 edits that re-ran `src/server/lib/db.ts`, `pg_stat_activity` still showed 1 connection.
+- **Scripts:** a script importing `@/server/lib/db` ran an insert and a `db.query` findMany under `bun --conditions=react-server`. Without the flag, `server-only` throws.
 - **Checks:** the next-devtools MCP `get_compilation_issues` returned none. Lint, typecheck, tests, format and build pass; the build shows `/api/v1/health` as dynamic (ƒ).
 
 ### How a phase adds a table
 
 1. **Load the skill.** Load `supabase-postgres-best-practices` first. Its rules are already reflected below: snake_case, `text` over `varchar`, `timestamptz`, an index on every FK, and enums as `text` + a check constraint.
-2. **Create `src/db/schema/<domain>.ts`.** Use relative imports only, and import only `drizzle-orm`. Example:
+2. **Create `src/server/models/<entity>.model.ts`.** Use relative imports only, and import only `drizzle-orm`. Example:
 
    ```ts
    import { index, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
@@ -125,14 +125,14 @@ Done 2026-11-14.
    );
    ```
 
-3. **Re-export it.** Add `export * from "./<domain>";` to `src/db/schema/index.ts`. Without that line, both drizzle-kit and `db.query` ignore the table.
+3. **Re-export it.** Add `export * from "./<domain>";` to `src/server/models/index.ts`. Without that line, both drizzle-kit and `db.query` ignore the table.
 4. **Generate and apply the migration.** Run `docker compose up -d`, then `bun run db:generate --name <change>`. Review `drizzle/NNNN_<change>.sql`, then run `bun run db:migrate`. Commit the schema file, the SQL and `drizzle/meta/` together.
-5. **Write the DAL module (`src/data/<domain>.ts`).** It starts with `import "server-only"`, `import { db } from "@/lib/db"` and `import { memories } from "@/db/schema"`. Each function begins with `const user = await requireUser()` (from `@/data/auth`, Phase 03), filters every query by `user.id`, and returns DTOs, never rows.
+5. **Write the DAL module (`src/server/repository/<entity>.repository.ts`).** It starts with `import "server-only"`, `import { db } from "@/server/lib/db"` and `import { memories } from "@/server/models"`. Each function begins with `const user = await requireUser()` (from `@/server/middlewares/require-user.middleware`, Phase 03), filters every query by `user.id`, and returns DTOs, never rows.
 
 **Gotchas for later phases:**
 
 - **Restart `bun dev` after changing `DATABASE_URL`.** Next reloads `.env.local`, but the pool cached on `globalThis` keeps the old URL.
-- **Scripts** (e.g. Phase 04's seed) that import `@/lib/db` or `@/lib/env` must run as `bun --conditions=react-server <file>`, or `server-only` throws. Bun loads `.env.local` for them itself.
+- **Scripts** (e.g. Phase 04's seed) that import `@/server/lib/db` or `@/server/lib/env` must run as `bun --conditions=react-server <file>`, or `server-only` throws. Bun loads `.env.local` for them itself.
 - **drizzle-kit doesn't get env from `bun run`.** `drizzle.config.ts` loads `.env.local` itself. On CI or a deploy host, set `DIRECT_URL` in the real environment.
 - **DB errors:**
   - Drizzle wraps every failed query in `DrizzleQueryError` (exported from `drizzle-orm`). Its message contains the SQL **and the params**, and the driver error is in `.cause`.
@@ -141,7 +141,7 @@ Done 2026-11-14.
 - **Never use `drizzle-kit push`.** There's deliberately no `db:push` script.
 - **`db.query.<table>`** works for tables exported from the barrel. Relational `with:` queries also need `relations()` definitions in the schema files.
 - **postgres.js returns `timestamptz` as a JS `Date`**.
-- **Tests:** mock the DB with `mock.module("@/lib/db", () => ({ db: { … } }))` before a dynamic `await import()` of the module under test.
+- **Tests:** mock the DB with `mock.module("@/server/lib/db", () => ({ db: { … } }))` before a dynamic `await import()` of the module under test.
 - **Hosted Supabase later:**
   - `DATABASE_URL` is the transaction pooler (port 6543); `prepare: false` is already set.
   - `DIRECT_URL` is the direct connection (port 5432). The direct host is IPv6-only unless you buy the IPv4 add-on; on an IPv4-only network, use the session pooler URL (pooler host, port 5432) instead.

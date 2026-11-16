@@ -11,7 +11,7 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
 ## In scope
 
 - **Consent:**
-  - `consent_requests` table (`src/db/schema/consent.ts`):
+  - `consent_requests` table (`src/server/models/consent.model.ts`):
     - columns: `user_id`, `app_id` (cascade), `operation`, `categories` text[], `max_sensitivity`, `reason_encrypted` (app-written free text, encrypted like the access log's purpose), `status` (`pending`\|`approved`\|`denied`), `created_at`, `decided_at`
   - **`POST /api/v1/consent-requests`**, per [public-api.md](../public-api.md), audited as `consent`
   - a pending-requests panel on `/dashboard/permissions`
@@ -34,8 +34,8 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
 
 - `POST /api/v1/consent-requests`, as documented.
 - `bun run seed:jane [email] [--reset]` + `bun run reindex` give a repeatable demo vault.
-- `@/data/consent`: low-level `createConsentRequest`; owner-scoped `listPendingConsentRequests`, `approveConsentRequest`, `denyConsentRequest`.
-- Owner-scoped counts for the Overview: `getMemoryCounts` (`@/data/memories`), `getGrantCounts` (`@/data/grants`). `listAccessEvents(page, pageSize)`.
+- `@/server/services/consent.service`: low-level `createConsentRequest`; owner-scoped `listPendingConsentRequests`, `approveConsentRequest`, `denyConsentRequest`.
+- Owner-scoped counts for the Overview: `getMemoryCounts` (`@/server/services/memory.service`), `getGrantCounts` (`@/server/services/grant.service`). `listAccessEvents(page, pageSize)`.
 
 ## Acceptance
 
@@ -54,10 +54,10 @@ Done 2026-11-16.
   - Approval locks the apps before the request row (an app delete's order).
   - The access log hides the outcome badge on consent events, and labels the reason "Reason".
 - **Shared code moved:**
-  - access-event labels and `OutcomeBadge` → `@/components/access-event-summary`
-  - the app monogram → `@/components/app-monogram`
-  - `SENSITIVITY_CAP_LABELS` and `formatCategoryList` → `@/lib/memory-taxonomy`
-  - `lockOwnedApps` is now exported from `@/data/grants`
+  - access-event labels and `OutcomeBadge` → `@/client/components/access-event-summary`
+  - the app monogram → `@/client/components/app-monogram`
+  - `SENSITIVITY_CAP_LABELS` and `formatCategoryList` → `@/shared/constants/memory-taxonomy`
+  - `lockOwnedApps` is now exported from `@/server/repository/grant.repository`
 - **Overview:** CSS only, following the `dataviz` skill:
   - topics as ranked bars
   - tiers as a tall segmented bar on a validated ordinal slate ramp (the `--tier-*` tokens in `globals.css`)

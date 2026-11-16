@@ -12,17 +12,17 @@
 // on purpose: the demo shows that no app sees them without an explicit grant.
 
 import { eq } from "drizzle-orm";
-import type { MemoryAnnotations } from "@/data/memories";
-import { accessEvents, connectedApps, memories, users } from "@/db/schema";
-import { encryptField } from "@/lib/crypto";
-import { db } from "@/lib/db";
+import type { MemoryAnnotations } from "@/server/repository/memory.repository";
+import { accessEvents, connectedApps, memories, users } from "@/server/models";
+import { encryptField } from "@/server/lib/crypto";
+import { db } from "@/server/lib/db";
 import {
   MEMORY_CATEGORIES,
   SENSITIVITY_TIERS,
   type MemoryCategory,
   type Provenance,
   type Sensitivity,
-} from "@/lib/memory-taxonomy";
+} from "@/shared/constants/memory-taxonomy";
 
 type SeedMemory = {
   daysAgo: number;
@@ -608,7 +608,6 @@ async function seed(email: string, reset: boolean) {
       annotationsEncrypted: encryptField(JSON.stringify(annotations)),
       category: memory.category,
       sensitivity: memory.sensitivity,
-      // Writes the rows itself: the memories DAL imports the session helpers, which need Next.js.
       sourceType: "user" as const,
       provenance,
       confidence: CONFIDENCE[provenance] ?? 1,

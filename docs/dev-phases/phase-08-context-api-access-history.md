@@ -10,7 +10,7 @@ A connected app asks a natural-language question with rich optional hints, and g
 
 ## In scope
 
-- **`requestContext(identity, input, channel)`** in `src/data/context.ts` runs the read flow from [public-api.md](../public-api.md):
+- **`requestContext(identity, input, channel)`** in `src/server/services/context.service.ts` runs the read flow from [public-api.md](../public-api.md):
   1. `getAccessScope(…, "read")`. With no categories or no allowed sources, **403 `read_denied`**.
   2. The effective categories are the granted ones ∩ `categories` − `excludeCategories`. `withheldCategories` lists the requested categories that aren't granted, and nothing else.
   3. The sources are the allowed sources ∩ `origin` (`other_apps` drops this app; `this_app` keeps only it).
@@ -19,7 +19,7 @@ A connected app asks a natural-language question with rich optional hints, and g
   6. `getMemoriesByIds`, then **re-check `canRead`** on every row and drop expired memories and those under `minConfidence`.
   7. **Rerank:** similarity, a recency weight (`recency`), importance and confidence. Keep the top `depth`.
   8. With nothing left, return `context: ""` **without any LLM call**.
-  9. **Projection** (`projectContext` in `src/lib/ai.ts`):
+  9. **Projection** (`projectContext` in `src/server/lib/ai.ts`):
      - use only the given memories
      - serve `purpose` and `task`
      - skip `knownFacts`
@@ -44,7 +44,7 @@ A connected app asks a natural-language question with rich optional hints, and g
 ## Contract provided
 
 - **`POST /api/v1/context`**, as documented in [public-api.md](../public-api.md).
-- `requestContext(identity, input, channel)` from `@/data/context` (Phase 09 doesn't need it; the hub uses only HTTP).
+- `requestContext(identity, input, channel)` from `@/server/services/context.service` (Phase 09 doesn't need it; the hub uses only HTTP).
 - The access log shows every `write`, `retract` and `context` event. Phase 09 adds `consent`.
 
 ## Acceptance
@@ -67,9 +67,9 @@ Done 2026-11-16.
 - **No AI calls before authorization.** A 403 comes before any AI call. A request whose `categories`/`excludeCategories`/`origin` leave nothing to search makes no AI call at all. Search hits below `MIN_SIMILARITY = 0.2` are dropped, so an unrelated query returns `""` with no projection. Measured: unrelated top score 0.14, relevant 0.26–0.53.
 - **Contract:**
   - `requestContext(identity, request, channel)` returns `{ response, disclosed }`, where identity is `Pick<AppIdentity, "userId" | "appId" | "appName">` and defaults live in the DAL.
-  - Also new: `listMemoriesByIds` (owner-scoped), `rewriteQuery` and `projectContext` in `@/lib/ai`, and `@/lib/context-options` (enums and labels, client-safe).
-  - `@/lib/api-fields` holds the shared zod fields, moved out of the memories route.
-  - `memory-badges` moved to `@/components`, and `SourceLabel` takes `appName`.
+  - Also new: `listMemoriesByIds` (owner-scoped), `rewriteQuery` and `projectContext` in `@/server/lib/ai`, and `@/shared/constants/context-options` (enums and labels, client-safe).
+  - `@/shared/validators/api-fields` holds the shared zod fields, moved out of the memories route.
+  - `memory-badges` moved to `@/client/components`, and `SourceLabel` takes `appName`.
 - **UI:** access-log rows are native `<details>`; the page preloads (and decrypts) the memories its 20 events reference. Playground runs are real requests, logged with channel `playground`.
 - **Smoke script (31 checks):** the `VAULT_API_KEY` app now also needs read grants for activity and sleep (Personal), no finance read grant, and **only itself** under "Reads data from".
 - **Verified** with real OpenAI and Pinecone:

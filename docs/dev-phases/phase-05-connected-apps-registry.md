@@ -8,7 +8,7 @@ The vault owner registers external applications and issues them API keys, and an
 
 ## Coupling boundary
 
-- **Owns:** the `connected_apps` and `app_api_keys` tables, `src/data/apps.ts`, `src/lib/app-auth.ts`, the `/dashboard/apps` page.
+- **Owns:** the `connected_apps` and `app_api_keys` tables, `src/server/services/app.service.ts`, `src/server/middlewares/require-app.middleware.ts`, the `/dashboard/apps` page.
 - **Must not:** decide what an app may read or write. That is Phase 06.
 
 ## Decisions to make with the user (at phase start)
@@ -27,11 +27,11 @@ None expected.
   - `connected_apps`: `id`, `user_id`, `name`, `description`, `created_at`
   - `app_api_keys`: `id`, `app_id`, `key_prefix`, `key_hash`, `created_at`, `last_used_at`, `revoked_at`
   - Optionally add the FK from `memories.source_app_id` to `connected_apps.id`.
-- `src/data/apps.ts` (owner-scoped):
+- `src/server/services/app.service.ts` (owner-scoped):
   - `listApps()`, `createApp(input)`, `deleteApp(id)`
   - `createApiKey(appId)`, which returns the plaintext key **once**
   - `revokeApiKey(keyId)`
-- `src/lib/app-auth.ts`: `authenticateApp(request: Request): Promise<AppIdentity | null>`.
+- `src/server/middlewares/require-app.middleware.ts`: `authenticateApp(request: Request): Promise<AppIdentity | null>`.
   - Reads `Authorization: Bearer <key>`, hashes it and looks it up.
   - Rejects revoked keys.
   - Updates `last_used_at` (non-blocking, e.g. `after()`).
@@ -47,13 +47,13 @@ None expected.
 
 ## Contract provided
 
-- **App auth:** `authenticateApp(request)` from `@/lib/app-auth` returns `AppIdentity | null`, where `AppIdentity = { appId, appName, userId, keyId }`.
+- **App auth:** `authenticateApp(request)` from `@/server/middlewares/require-app.middleware` returns `AppIdentity | null`, where `AppIdentity = { appId, appName, userId, keyId }`.
   - `userId` is the owner of the app, so it is the vault the app may talk to.
   - It returns `null` for a missing header, another scheme, or a malformed, unknown or revoked key. It never throws for a bad key and never logs one.
   - It proves identity only and knows nothing about grants.
   - Call it from Route Handlers: it records the key's use with `after()`.
-- **Schema:** `connectedApps` and `appApiKeys` from `@/db/schema`. `connected_apps.id` is the FK target for grants (Phase 06) and audit events (Phase 07).
-- **DAL** (`@/data/apps`), owner-scoped:
+- **Schema:** `connectedApps` and `appApiKeys` from `@/server/models`. `connected_apps.id` is the FK target for grants (Phase 06) and audit events (Phase 07).
+- **DAL** (`@/server/services/app.service`), owner-scoped:
   - `listApps()` returns `AppDTO[]`, ordered by name. Use it on other dashboard pages, e.g. the permissions matrix.
     - `AppDTO = { id, name, description: string | null, createdAt, activeKey: ApiKeySummary | null }`
     - `ApiKeySummary = { id, prefix, createdAt, lastUsedAt: Date | null }`
@@ -83,11 +83,11 @@ Done 2026-11-15.
 **Built:**
 
 - **No new dependencies.** Keys and hashing use `node:crypto`, the copy button uses `navigator.clipboard`, and the UI uses shadcn primitives already installed.
-- **Keys (`src/lib/api-keys.ts`):**
+- **Keys (`src/server/lib/api-keys.ts`):**
   - `generateApiKey()` returns `{ key, prefix, hash }`. The key is `pmv_` + 32 random bytes in base64url (47 chars), and the prefix is its first 12 chars.
   - `hashApiKey(key)` is SHA-256 hex. Keys carry 256 bits of randomness, so a fast hash is enough, and the hash serves as the lookup index.
   - `isApiKeyFormat(value)` turns away anything not shaped like a key before any lookup.
-- **Schema (`src/db/schema/apps.ts`, `drizzle/0003_connected_apps.sql`):**
+- **Schema (`src/server/models/app.model.ts`, `drizzle/0003_connected_apps.sql`):**
   - **`connected_apps`:** a cascading FK to `users`, and the unique index `connected_apps_user_id_name_key` on `(user_id, lower(name))`, which also serves the FK.
   - **`app_api_keys`:**
     - a cascading FK to `connected_apps`, and a unique `key_hash`
@@ -97,7 +97,7 @@ Done 2026-11-15.
     - `source_app_id` gets its FK (`on delete set null`) and `memories_source_app_id_idx`.
     - `memories_source_check` now allows an app-sourced row with a null app id.
     - This changes Phase 04's `MemorySource` to `appId: string | null`; its doc is updated.
-- **DAL (`src/data/apps.ts`):**
+- **DAL (`src/server/services/app.service.ts`):**
   - **Owner functions** start with `requireUser()` and scope by owner in the same statement. Revoking uses `update … from connected_apps`, so there's no read-then-check.
   - **`createApiKey`** runs in one transaction:
     - it locks the owner's app row (`for update`), so concurrent rotations run one after the other
@@ -107,7 +107,7 @@ Done 2026-11-15.
   - **Low-level, not session-checked:**
     - `findAppIdentityByKeyHash(hash)` joins apps and active keys.
     - `touchApiKey(keyId)` sets `last_used_at = now()`.
-- **App auth (`src/lib/app-auth.ts`):**
+- **App auth (`src/server/middlewares/require-app.middleware.ts`):**
   1. Parses `Authorization: Bearer <key>`; the scheme is case-insensitive.
   2. Checks the format, hashes the key and looks it up.
   3. Then `after()` touches `last_used_at`. A failed touch logs a `warn` with the driver error (`.cause`) and the key id, never the key.
@@ -136,10 +136,10 @@ Done 2026-11-15.
     - a menu with "New key" (when there's no active key), "Replace key" and "Revoke key" (when there is), and "Delete app"
     - every item except "New key" is confirmed in an `AlertDialog`
     - a new key opens `KeyReveal`, whose state is cleared once that dialog finishes closing
-- **Shared:** `LocalDateTime` moved to `src/components/local-date-time.tsx`, since Memories and Apps both use it.
+- **Shared:** `LocalDateTime` moved to `src/client/components/local-date-time.tsx`, since Memories and Apps both use it.
 - **Test script:** it's now `bun test --isolate`.
   - Bun shares one module registry across test files by default, so one file's `mock.module()` leaked into later files. The suite had only passed because of file order.
-  - Adding `apps.test.ts` (which mocks `@/data/auth`) broke `auth.test.ts`.
+  - Adding `apps.test.ts` (which mocks `@/server/middlewares/require-user.middleware`) broke `auth.test.ts`.
   - `isolate` isn't a `bunfig.toml` option, only a CLI flag.
 - **Tests (local, git-ignored):** 103 pass (43 new).
   - **Keys:** the format and length, the prefix, the hash, uniqueness, the format check.

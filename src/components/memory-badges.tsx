@@ -87,12 +87,15 @@ export function MemoryMeta({ memory }: { memory: MemoryDTO }) {
   );
 }
 
-export function SourceLabel({ source }: { source: MemorySource }) {
+/** Who wrote a memory. Pass `appName` to name the writing app instead of saying "App". */
+export function SourceLabel({ source, appName }: { source: MemorySource; appName?: string }) {
   const Icon = source.type === "app" ? BlocksIcon : UserIcon;
+  const label =
+    source.type === "user" ? "You" : source.appId === null ? "Deleted app" : (appName ?? "App");
   return (
     <span className="inline-flex items-center gap-1.5 text-muted-foreground">
       <Icon aria-hidden="true" className="size-3.5" />
-      {source.type === "app" ? "App" : "You"}
+      {label}
     </span>
   );
 }

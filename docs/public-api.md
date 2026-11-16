@@ -142,7 +142,7 @@ Ask for what you need to know about the user. The vault does the rest:
 1. checks your grants and allowed sources **first**
 2. searches only that slice by meaning
 3. ranks what it finds
-4. returns a **projection of at most 100 words**, written for your purpose
+4. returns a **projection of at most 100 characters**, written for your purpose
 
 Put `context` straight into your system prompt.
 
@@ -152,17 +152,17 @@ Put `context` straight into your system prompt.
 | `purpose`           | string, ≤ 200                                                                          | Why you're asking. Shown to the owner in their access log                                     |
 | `task`              | `personalize`\|`answer`\|`recommend`\|`plan`\|`summarize_profile`\|`check_constraints` | Shapes the projection. `check_constraints` surfaces allergies, limits and dislikes first      |
 | `conversation`      | `{ role, content ≤ 4000 }[]`, ≤ 20                                                     | Recent turns. The vault rewrites them into a standalone search, so "what about dinner?" works |
-| `knownFacts`        | string[], ≤ 20                                                                         | What you already know, so the vault doesn't spend words repeating it                          |
-| `keywords`          | string[], ≤ 20                                                                         | Extra search terms                                                                            |
-| `entities`          | string[], ≤ 20                                                                         | People, places or things to focus on                                                          |
-| `categories`        | category[]                                                                             | Only these categories (intersected with your grants)                                          |
+| `knownFacts`        | string[], ≤ 20, each ≤ 300                                                             | What you already know, so the vault doesn't spend characters repeating it                     |
+| `keywords`          | string[], ≤ 20, each ≤ 100                                                             | Extra search terms                                                                            |
+| `entities`          | string[], ≤ 20, each ≤ 100                                                             | People, places or things to focus on                                                          |
+| `categories`        | category[], 1–16                                                                       | Only these categories (intersected with your grants). Leave it out for every granted one      |
 | `excludeCategories` | category[]                                                                             | Never these, even if granted                                                                  |
 | `origin`            | `any` (default) \| `other_apps` \| `this_app`                                          | `other_apps` returns **only what the user hasn't already told your app**                      |
 | `timeRange`         | `{ from?: datetime, to?: datetime }`                                                   | Only memories that occurred in this window                                                    |
 | `recency`           | `recent`\|`balanced` (default)\|`all_time`                                             | How much newer memories are favoured                                                          |
 | `depth`             | `quick`\|`standard` (default)\|`deep`                                                  | How many memories to consider (≈ 8 / 20 / 40). Speed vs coverage                              |
 | `minConfidence`     | number 0–1                                                                             | Ignores uncertain memories                                                                    |
-| `maxWords`          | integer 20–100 (default 100)                                                           | Length budget for `context`                                                                   |
+| `maxChars`          | integer 20–100 (default 100)                                                           | Length budget for `context`, in characters                                                    |
 | `format`            | `paragraph` (default) \| `bullets`                                                     | Output shape                                                                                  |
 | `perspective`       | `third_person` (default) \| `second_person`                                            | "The user…" for system prompts, or "You…" for showing to the user                             |
 | `language`          | BCP-47 (default `en`)                                                                  | Output language                                                                               |
@@ -179,7 +179,7 @@ Put `context` straight into your system prompt.
   "categories": ["activity", "sleep", "health", "finance"],
   "recency": "recent",
   "knownFacts": ["Runs 5 km most mornings"],
-  "maxWords": 80,
+  "maxChars": 100,
   "timezone": "Asia/Kolkata",
   "includeSources": true
 }
@@ -190,24 +190,30 @@ Put `context` straight into your system prompt.
 ```json
 {
   "requestId": "…",
-  "context": "The user slept under six hours on three of the last four nights and reported feeling drained yesterday. They mentioned mild knee soreness after Sunday's run…",
-  "wordCount": 41,
+  "context": "The user slept under 6 hours on 3 of the last 4 nights; their knee was sore after Sunday's run.",
+  "charCount": 95,
   "coverage": {
-    "memoriesUsed": 4,
-    "categories": ["sleep", "mood", "health"],
+    "memoriesUsed": 2,
+    "categories": ["sleep", "health"],
     "timeSpan": { "from": "2026-11-12T00:00:00Z", "to": "2026-11-16T00:00:00Z" }
   },
   "withheldCategories": ["finance"],
   "sources": [
-    { "category": "sleep", "sensitivity": "personal", "occurredAt": "2026-11-15T23:40:00Z" }
+    { "category": "sleep", "sensitivity": "personal", "occurredAt": "2026-11-15T23:40:00Z" },
+    { "category": "health", "sensitivity": "personal", "occurredAt": "2026-11-16T02:00:00Z" }
   ],
   "generatedAt": "…"
 }
 ```
 
+- `requestId` is the id of this request's entry in the owner's access log, which lists exactly the memories `context` draws on.
+- `context` never exceeds `maxChars`, counted as JavaScript's `length` (UTF-16 code units), so it holds however you count. If the model writes too much, the vault keeps the whole sentences that fit, and only cuts within a sentence (ending with "…") when even the first is too long.
+- `coverage` and `sources` describe only the memories `context` draws on. `timeSpan` is `null` when none were used.
 - `withheldCategories` lists only categories **you named** and aren't granted. It never reveals whether data exists elsewhere.
-- When nothing relevant is allowed, `context` is `""` and `memoriesUsed` is `0`. No AI call is made.
-- With no read grant or no allowed source at all, the request fails with `403 read_denied`.
+- When nothing relevant is allowed, `context` is `""` and `memoriesUsed` is `0`, and no projection is generated. When your `categories`, `excludeCategories` or `origin` leave nothing to search, no AI call is made at all.
+- With no read grant or no allowed source at all, the request fails with `403 read_denied` **before** any AI call.
+- If the AI provider or the index fails, the request fails with `502 processing_failed`; retrying is safe.
+- A memory written a few seconds ago may not be searchable yet: the index is eventually consistent.
 
 ## `POST /consent-requests`: ask for access (Phase 09)
 

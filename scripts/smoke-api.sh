@@ -3,12 +3,17 @@
 # endpoints here. Usage:
 #   VAULT_API_KEY=pmv_… [VAULT_NO_GRANTS_API_KEY=pmv_…] bash scripts/smoke-api.sh
 # Create the apps and keys on /dashboard/apps, then set their grants on /dashboard/permissions:
-# - VAULT_API_KEY: write grants for activity, sleep, diet and mood capped at Protected, and NO
-#   write grant for health (the write checks expect a health fact to be withheld).
-# - VAULT_NO_GRANTS_API_KEY (optional): an app with no grants at all, for the 403 and the
-#   cross-app retract checks. Without it, those checks are skipped.
-# VAULT_URL defaults to http://localhost:3000. The write checks call the AI, so they take a few
-# seconds each. Everything written is retracted at the end. Exits non-zero on the first failure.
+# - VAULT_API_KEY:
+#   - Save: activity, sleep, diet and mood capped at Protected, and NO save grant for health (the
+#     write checks expect a health fact to be withheld).
+#   - Read: activity and sleep capped at Personal, and NO read grant for finance.
+#   - Reads data from: ONLY this app itself (the context checks read back this run's writes, and
+#     expect `origin: "other_apps"` to find nothing).
+# - VAULT_NO_GRANTS_API_KEY (optional): an app with no grants at all, for the 403s and the
+#   cross-app retract check. Without it, those checks are skipped.
+# VAULT_URL defaults to http://localhost:3000. The write and context checks call the AI, so they
+# take a few seconds each. Everything written is retracted at the end. Exits non-zero on the first
+# failure.
 set -euo pipefail
 
 BASE="${VAULT_URL:-http://localhost:3000}/api/v1"
@@ -60,6 +65,11 @@ refute() {
 # field <name>: the first string value of "<name>" in the last response body.
 field() {
   grep -o "\"$1\":\"[^\"]*\"" "$BODY" | head -1 | cut -d'"' -f4
+}
+
+# number <name>: the first numeric value of "<name>" in the last response body.
+number() {
+  grep -o "\"$1\":[0-9]*" "$BODY" | head -1 | cut -d: -f2
 }
 
 skip() {
@@ -145,6 +155,57 @@ expect "POST /memories with sensitivityFloor protected → stored as protected" 
 request POST /memories "${AUTH[@]}" "${JSON[@]}" --data "$JOURNAL"
 expect "POST /memories with a seen externalId → duplicate, nothing stored" 201 \
   '"duplicates":1' '"stored":[]'
+
+# ── Context (Phase 08) ── Runs before retract, so this run's writes are there to read back.
+ASK='"query":"How has the user been sleeping and exercising lately?"'
+
+request POST /context "${JSON[@]}" --data "{$ASK}"
+expect "POST /context without a key → 401" 401 '"code":"unauthorized"'
+
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data "{$ASK,\"bogus\":true}"
+expect "POST /context with an unknown field → 400" 400 '"code":"validation_error"'
+
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data '{"purpose":"Weekly plan"}'
+expect "POST /context without a query → 400" 400 '"code":"validation_error"'
+
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data "{$ASK,\"maxChars\":101}"
+expect "POST /context with maxChars above 100 → 400" 400 '"code":"validation_error"'
+
+if [[ -n "$NO_GRANTS_KEY" ]]; then
+  request POST /context "${NO_GRANTS_AUTH[@]}" "${JSON[@]}" --data "{$ASK}"
+  expect "POST /context with no read grants → 403 (before any AI call)" 403 '"code":"read_denied"'
+else
+  skip "POST /context with no read grants → 403"
+fi
+
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data "{$ASK,\"categories\":[\"finance\"]}"
+expect "POST /context naming only an ungranted topic → empty, finance withheld (no AI call)" 200 \
+  '"context":""' '"memoriesUsed":0' '"withheldCategories":["finance"]'
+
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data "{$ASK,\"origin\":\"other_apps\"}"
+expect "POST /context with origin other_apps → excludes this app's own writes" 200 \
+  '"context":""' '"memoriesUsed":0'
+
+# Pinecone is eventually consistent: this run's writes can take a few seconds to be searchable.
+OWN="{$ASK,\"origin\":\"this_app\",\"categories\":[\"activity\",\"sleep\",\"finance\"],\
+\"maxChars\":80,\"includeSources\":true,\"sessionId\":\"$RUN\"}"
+for attempt in 1 2 3 4 5 6; do
+  request POST /context "${AUTH[@]}" "${JSON[@]}" --data "$OWN"
+  [[ "$STATUS" == 200 ]] && ! grep -qF '"memoriesUsed":0' "$BODY" && break
+  sleep 2
+done
+expect "POST /context with origin this_app → a projection of this app's writes" 200 \
+  '"requestId":' '"withheldCategories":["finance"]' '"sources":[{"category":'
+refute "POST /context with origin this_app" '"memoriesUsed":0'
+refute "POST /context with origin this_app (never names a source app)" '"source"'
+CHARS="$(number charCount)"
+if (( CHARS == 0 || CHARS > 80 )); then
+  echo "FAIL  POST /context maxChars 80: charCount is $CHARS"
+  cat "$BODY"
+  echo
+  exit 1
+fi
+echo "ok    POST /context keeps the projection within maxChars ($CHARS ≤ 80)"
 
 # ── Retract (Phase 07) ──
 request DELETE /memories "${JSON[@]}" --data "{\"sessionId\":\"$RUN\"}"

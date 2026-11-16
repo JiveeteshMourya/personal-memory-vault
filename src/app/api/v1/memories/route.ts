@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ingestMemories, retractMemories } from "@/data/ingest";
+import { datetime, instant, languageTag, timeZone } from "@/lib/api-fields";
 import { errorResponse } from "@/lib/api-errors";
 import { requireApp } from "@/lib/app-auth";
 import {
@@ -11,26 +12,6 @@ import {
   SENSITIVITY_TIERS,
 } from "@/lib/memory-taxonomy";
 import { parseBody } from "@/lib/parse-body";
-
-const datetime = z.iso.datetime({ offset: true });
-const instant = datetime.transform(value => new Date(value));
-
-function isTimeZone(value: string) {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isLanguageTag(value: string) {
-  try {
-    return Intl.getCanonicalLocales(value).length === 1;
-  } catch {
-    return false;
-  }
-}
 
 // docs/public-api.md, `POST /memories`.
 const writeSchema = z
@@ -53,13 +34,9 @@ const writeSchema = z
     confidence: z.number().min(0).max(1).optional(),
     importance: z.int().min(1).max(5).optional(),
     occurredAt: instant.optional(),
-    timezone: z.string().max(64).refine(isTimeZone, { error: "Use an IANA timezone" }).optional(),
+    timezone: timeZone.optional(),
     expiresAt: instant.optional(),
-    language: z
-      .string()
-      .max(35)
-      .refine(isLanguageTag, { error: "Use a BCP-47 language tag" })
-      .optional(),
+    language: languageTag.optional(),
     domain: z.string().trim().min(1).max(40).optional(),
     categoryHints: z.array(z.enum(MEMORY_CATEGORIES)).max(MEMORY_CATEGORIES.length).optional(),
     sensitivityFloor: z.enum(SENSITIVITY_TIERS).optional(),

@@ -104,6 +104,12 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P08] No per-tier result caps — over-disclosure — cap the memories used per tier.
 - [ ] [P08] No leakage evals — the projection may include more than the purpose needs — an eval set with privacy assertions.
 - [ ] [P08] No output redaction pass — PII may slip through the projection — a PII scrubber on the output.
+- [ ] [P08] "Disclosed" memories come from the model's own `usedMemories` citations — a fact used but not cited is missing from the access log — check citations against the text (or fall back to everything sent) in a leakage eval.
+- [ ] [P08] `MIN_SIMILARITY = 0.2` was set from a handful of queries on one seed — real queries may cut relevant memories or let unrelated ones through — calibrate on a labelled query set, maybe per depth.
+- [ ] [P08] The model often writes past the 100-character cap, so the server drops whole sentences — useful facts can be lost — one "shorten" retry when the output is over the cap, or rank facts before writing.
+- [ ] [P08] The access log preloads and decrypts every memory its 20 events reference (up to ~800) — slow pages as the log grows — load a row's memories on expand.
+- [ ] [P08] The projection prompt says never to name apps, but a memory's own text can mention an app or service — an app could learn which other apps the owner uses — strip known app names from memory text before projecting.
+- [ ] [P08] Memories and the app's query and purpose go to OpenAI for projection (with `store: false`) — authorized data still leaves the device — a local model for projection in production.
 
 ## P09 — Consent, Overview & Demo Readiness
 

@@ -1,23 +1,25 @@
-import { ScrollTextIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
+import {
+  AccessLogList,
+  AccessLogSkeleton,
+} from "@/app/(dashboard)/dashboard/access-log/_components/access-log-list";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Access log" };
 
-export default function AccessLogPage() {
+// The header is static; the list reads the session and the page in the URL, so it streams in.
+export default function AccessLogPage({ searchParams }: PageProps<"/dashboard/access-log">) {
   return (
     <>
       <PageHeader
         title="Access log"
         description="Every time an app saved to or asked your vault, and what it got back."
       />
-      <EmptyState
-        icon={ScrollTextIcon}
-        title="No requests yet"
-        description="When an app asks for context, you’ll see what it asked, why, and exactly what it received."
-      />
+      <Suspense fallback={<AccessLogSkeleton />}>
+        <AccessLogList searchParams={searchParams} />
+      </Suspense>
     </>
   );
 }

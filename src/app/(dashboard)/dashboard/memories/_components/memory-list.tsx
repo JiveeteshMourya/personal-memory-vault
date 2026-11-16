@@ -2,17 +2,17 @@ import { ArchiveIcon, ChevronLeftIcon, ChevronRightIcon, SearchXIcon } from "luc
 import Link from "next/link";
 import { z } from "zod";
 
-import {
-  CategoryBadge,
-  MemoryMeta,
-  SensitivityBadge,
-  SourceLabel,
-} from "@/app/(dashboard)/dashboard/memories/_components/memory-badges";
 import { MemoryFilters } from "@/app/(dashboard)/dashboard/memories/_components/memory-filters";
 import { MemoryRowActions } from "@/app/(dashboard)/dashboard/memories/_components/memory-row-actions";
 import { NewMemoryButton } from "@/app/(dashboard)/dashboard/memories/_components/new-memory-button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { LocalDateTime } from "@/components/local-date-time";
+import {
+  CategoryBadge,
+  MemoryMeta,
+  SensitivityBadge,
+  SourceLabel,
+} from "@/components/memory-badges";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

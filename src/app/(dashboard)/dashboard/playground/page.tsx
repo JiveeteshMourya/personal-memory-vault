@@ -1,23 +1,25 @@
-import { FlaskConicalIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
+import {
+  PlaygroundPanel,
+  PlaygroundSkeleton,
+} from "@/app/(dashboard)/dashboard/playground/_components/playground-panel";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Playground" };
 
+// The header is static; the panel reads the session and the owner's apps, so it streams in.
 export default function PlaygroundPage() {
   return (
     <>
       <PageHeader
         title="Playground"
-        description="Send a test request as one of your apps and see what the vault would return."
+        description="Ask your vault something as one of your apps, and see exactly what that app would get back and which memories it came from."
       />
-      <EmptyState
-        icon={FlaskConicalIcon}
-        title="Nothing to test yet"
-        description="Connect an app and give it a permission first. Then you can try its requests here without affecting anything."
-      />
+      <Suspense fallback={<PlaygroundSkeleton />}>
+        <PlaygroundPanel />
+      </Suspense>
     </>
   );
 }

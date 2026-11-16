@@ -179,6 +179,15 @@ export async function getMemory(id: string): Promise<MemoryDTO | null> {
   return row ? toDTO(row) : null;
 }
 
+/**
+ * The owner's memories with these ids, in the order of `ids`. Ids that no longer exist (or were
+ * never the owner's) are left out.
+ */
+export async function listMemoriesByIds(ids: string[]): Promise<MemoryDTO[]> {
+  const user = await requireUser();
+  return getMemoriesByIds(user.id, ids);
+}
+
 /** Stores a memory the owner wrote themselves, and indexes it. */
 export async function createMemory(input: MemoryInput): Promise<MemoryDTO> {
   const user = await requireUser();

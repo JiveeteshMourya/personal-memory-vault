@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./auth.model";
 
-// Connected apps and their API keys (Phase 05). Registering an app grants it nothing: what it may
-// read or write lives in its grants (Phase 06).
+// Connected apps and their API keys. Registering an app grants it nothing: what it may read or
+// write lives in its grants (`./grant.model`).
 
 export const connectedApps = pgTable(
   "connected_apps",

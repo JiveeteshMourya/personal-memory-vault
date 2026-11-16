@@ -1,4 +1,4 @@
-# Local dev services: Postgres 17 (matches the Supabase platform default) and the Qdrant vector index.
+# Local services: Postgres 17 and the Qdrant vector index. Everything the vault stores runs here.
 # Start with `docker compose up -d`; the URLs in .env.example point here. Ports are bound to localhost.
 services:
   postgres:

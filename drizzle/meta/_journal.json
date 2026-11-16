@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794652547789,
+      "when": 1794813352271,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1794755447509,
-      "tag": "0001_auth",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1794757378015,
-      "tag": "0002_memories",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1794759944769,
-      "tag": "0003_connected_apps",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1794765246785,
-      "tag": "0004_taxonomy_permissions_audit",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1794794226767,
-      "tag": "0005_ai_ingest",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1794800796666,
-      "tag": "0006_consent",
       "breakpoints": true
     }
   ]

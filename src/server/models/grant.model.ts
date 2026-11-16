@@ -6,7 +6,7 @@ import { connectedApps } from "./app.model";
 import { users } from "./auth.model";
 import { sqlList } from "./sql-list";
 
-// What each connected app may do (Phase 06). Everything is denied by default: a row allows, and
+// What each connected app may do. Everything is denied by default: a row allows, and
 // revoking deletes the row. The policy engine (`access-policy.service.ts`) decides from both tables.
 
 /** One category an app may read or write, capped at a sensitivity tier. */

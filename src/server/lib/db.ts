@@ -8,9 +8,8 @@ import { env } from "@/server/lib/env";
 // per reload.
 const globalForDb = globalThis as unknown as { pgClient?: postgres.Sql };
 
-// postgres.js connects lazily, on the first query. `prepare: false` because Supabase's transaction
-// pooler (the hosted DATABASE_URL) can't use prepared statements.
-const client = globalForDb.pgClient ?? postgres(env.DATABASE_URL, { prepare: false });
+// postgres.js connects lazily, on the first query.
+const client = globalForDb.pgClient ?? postgres(env.DATABASE_URL);
 
 if (env.NODE_ENV !== "production") {
   globalForDb.pgClient = client;

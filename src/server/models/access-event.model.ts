@@ -10,8 +10,8 @@ import { connectedApps } from "./app.model";
 import { users } from "./auth.model";
 import { sqlList } from "./sql-list";
 
-// Every app access to the vault (Phase 06): writes, retracts, context requests and consent
-// requests. The purpose and query are encrypted like memory content; nothing else holds content.
+// Every app access to the vault: writes, retracts, context requests and consent requests.
+// The purpose and query are encrypted like memory content; nothing else holds content.
 
 export const accessEvents = pgTable(
   "access_events",

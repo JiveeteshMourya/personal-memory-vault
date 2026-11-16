@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Smoke-tests the public API (docs/public-api.md) against a running vault. Each API phase adds its
-# endpoints here. Usage:
+# Smoke-tests every endpoint of the public API (docs/public-api.md) against a running vault. Usage:
 #   VAULT_API_KEY=pmv_… [VAULT_NO_GRANTS_API_KEY=pmv_…] bash scripts/smoke-api.sh
 # Create the apps and keys on /dashboard/apps, then set their grants on /dashboard/permissions:
 # - VAULT_API_KEY:
@@ -87,7 +86,7 @@ RUN="smoke-$(date +%s)"
 request GET /health
 expect "GET /health" 200 '"status":"ok"'
 
-# ── Permissions (Phase 06) ──
+# ── Permissions ──
 request GET /permissions
 expect "GET /permissions without a key → 401" 401 '"code":"unauthorized"'
 
@@ -98,7 +97,7 @@ request GET /permissions "${AUTH[@]}"
 expect "GET /permissions with a key → 200" 200 '"app":' '"write":' '"read":' '"sources":' \
   '"otherAppsCount":' '"id":"identity"' '"id":"other"' '"id":"protected"'
 
-# ── Write (Phase 07) ──
+# ── Write ──
 request POST /memories "${JSON[@]}" --data '{"content":"Ran 5 km this morning."}'
 expect "POST /memories without a key → 401" 401 '"code":"unauthorized"'
 
@@ -157,7 +156,7 @@ request POST /memories "${AUTH[@]}" "${JSON[@]}" --data "$JOURNAL"
 expect "POST /memories with a seen externalId → duplicate, nothing stored" 201 \
   '"duplicates":1' '"stored":[]'
 
-# ── Context (Phase 08) ── Runs before retract, so this run's writes are there to read back.
+# ── Context ── Runs before retract, so this run's writes are there to read back.
 ASK='"query":"How has the user been sleeping and exercising lately?"'
 
 request POST /context "${JSON[@]}" --data "{$ASK}"
@@ -203,7 +202,7 @@ if (( CHARS == 0 || CHARS > 80 )); then
 fi
 echo "ok    POST /context keeps the projection within maxChars ($CHARS ≤ 80)"
 
-# ── Retract (Phase 07) ──
+# ── Retract ──
 request DELETE /memories "${JSON[@]}" --data "{\"sessionId\":\"$RUN\"}"
 expect "DELETE /memories without a key → 401" 401 '"code":"unauthorized"'
 
@@ -231,7 +230,7 @@ refute "DELETE /memories by sessionId" '"deleted":0'
 request DELETE /memories "${AUTH[@]}" "${JSON[@]}" --data "{\"sessionId\":\"$RUN\"}"
 expect "DELETE /memories again → nothing left" 200 '"deleted":0'
 
-# ── Consent requests (Phase 09) ──
+# ── Consent requests ──
 ASK_ACCESS='"operation":"read","categories":["finance"],"reason":"Smoke test: deny me."'
 
 request POST /consent-requests "${JSON[@]}" --data "{$ASK_ACCESS}"

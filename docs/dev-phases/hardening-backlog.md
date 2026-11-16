@@ -19,7 +19,6 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P00] No pre-commit hooks — unformatted or broken commits — lefthook/husky running format and lint on staged files.
 - [ ] [P00] Unhandled-error logs include the error `message` and `stack` — a third-party error message (e.g. a DB error quoting a value) could echo user data into logs — redact messages from known sources or log only `name` plus a fingerprint for them.
 - [ ] [P00] With invalid env, a self-hosted `next start` logs the error but keeps the process alive, answering 500 — a process supervisor won't restart or alert — if it's ever deployed, rely on the `/api/v1/health` check, or `process.exit(1)` from `register()` on the Node runtime.
-- [x] [P00] `validation_error` details use `z.flattenError`, which only reports top-level fields — nested request bodies get vague errors — switch to `z.treeifyError` when an endpoint takes nested input. Resolved in P06.
 
 ## P01 — UI Shell & Design System
 
@@ -32,11 +31,11 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 ## P02 — Database Foundation
 
-- [ ] [P02] No Supabase Row Level Security — if DB credentials leak, all rows are exposed — enable RLS with deny-all for the anon and authenticated roles, since the app uses a server-side role.
+- [ ] [P02] No Row Level Security — if DB credentials leak, all rows are exposed — enable RLS with deny-all for the anon and authenticated roles, since the app uses a server-side role.
 - [ ] [P02] Connection pooling and timeouts untuned — connection exhaustion under load; with postgres.js's default 30s `connect_timeout`, the health check hangs about 30s when the DB host is unreachable (not refused) — tune the pooler mode, pool size, `connect_timeout` and statement timeouts.
-- [ ] [P02] No backup/restore drill — data loss — document and test Supabase backups.
+- [ ] [P02] No backup/restore drill — data loss — document and test `pg_dump` backups of the Docker volume.
 - [ ] [P02] Drizzle's `DrizzleQueryError` message embeds the SQL and its params, and `errorResponse`'s generic 500 path logs that message — row values (ids, ciphertext, metadata) can land in logs — in `errorResponse`, log a `DrizzleQueryError`'s `.cause` (name + SQLSTATE `code`) instead of the wrapper. Relates to the P00 item on third-party error messages.
-- [ ] [P02] Primary keys use random UUIDv4 (`gen_random_uuid()`) — index fragmentation on large tables (the Supabase skill's `schema-primary-keys` rule) — switch to time-ordered UUIDv7 (native `uuidv7()` on Postgres 18, or generated in the app) if a table grows large.
+- [ ] [P02] Primary keys use random UUIDv4 (`gen_random_uuid()`) — index fragmentation on large tables (the `supabase-postgres-best-practices` skill's `schema-primary-keys` rule) — switch to time-ordered UUIDv7 (native `uuidv7()` on Postgres 18, or generated in the app) if a table grows large.
 
 ## P03 — User Authentication
 
@@ -85,7 +84,6 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P07] No per-app quotas (only body-size limits) — storage and AI-cost abuse — per-app daily write quota.
 - [ ] [P07] No retries or fallback provider — an OpenAI outage fails writes with 502 — retry with backoff, plus an optional fallback model.
 - [ ] [P07] No token and cost tracking — surprise bills — log usage per call (without content).
-- [x] [P07] Pinecone Local is in-memory — vectors vanish on every container restart until `bun run reindex` — a persistent vector store (Pinecone cloud or pgvector), or reindex automatically on startup when the index is empty. Resolved in P07: Pinecone Local reached end-of-life (2026-10-07), so the vault uses Pinecone serverless (free Starter plan), which persists.
 - [ ] [P07] Embeddings are derived from sensitive plaintext — embedding-inversion risk if the index leaks — review the threat; consider per-tier indexes or keeping `protected` memories out of the vector index.
 - [ ] [P07] The index can drift from Postgres if a sync call fails — stale or missing results — periodic reconcile job.
 - [ ] [P07] Prompt-injection hardening is prompt-only — app-supplied text could steer extraction or classification — input delimiting, a sensitivity floor for suspicious input, and an output check.
@@ -95,7 +93,6 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P07] An input whose memories were all withheld leaves no row with its `externalId` — re-sending it runs extraction again (and is withheld again) — remember processed `externalId`s separately from memories.
 - [ ] [P07] Redaction of credentials and card, account or ID numbers is prompt-only — a missed number gets stored (encrypted) — a regex backstop for card numbers (Luhn), IBANs and common key formats before insert.
 - [ ] [P07] A failed index removal (owner delete, retract) or a deleted app leaves stale vectors until `bun run reindex` — embeddings of deleted content linger in the vector index (never served: rows are re-fetched and re-checked) — retry removals in the background, and drop an app's vectors when it's deleted.
-- [x] [P07] Vectors and their labels are hosted by Pinecone in AWS `us-east-1` — derived data leaves the device, and the free plan picks the region — a self-hosted or in-region vector store for production. Resolved 2026-11-16: the index moved to Qdrant in Docker on this PC.
 - [ ] [P07] Qdrant runs without an API key or TLS — anything on this PC can read or change the index (the port is bound to localhost) — set `QDRANT__SERVICE__API_KEY` and TLS before Qdrant runs anywhere shared.
 - [ ] [P07] Every account shares one collection, kept apart only by the `userId` filter — a search that forgets it would cross accounts — a test that asserts every index call filters on `userId`; consider Qdrant's tenant-aware HNSW settings (`payload_m`, `m: 0`) at scale.
 - [ ] [P07] Only `userId` has a payload index — filtered search falls back to scanning once an account holds many thousands of memories — index `category`, `source`, `visibility` and the numeric fields when scale matters.
@@ -129,7 +126,7 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 
 Work dropped from the plan to make the 2026-11-17 demo. See the Pivot Log in the index.
 
-- [ ] [CUT] Deployment (hosted Supabase, a hosting platform, production env) — the prototype only runs locally — deploy with RLS (P02), secure cookies (P03), env fail-fast (P00) and the `/api/v1/health` check.
+- [ ] [CUT] Deployment (a hosted Postgres and vector store, a hosting platform, production env) — the prototype only runs locally — deploy with RLS (P02), secure cookies (P03), env fail-fast (P00) and the `/api/v1/health` check.
 - [ ] [CUT] Monitoring, uptime checks and preview environments — needed only once deployed — error tracking, an uptime monitor, per-PR previews with a separate DB.
 - [ ] [CUT] Short-lived capability tokens — a leaked API key stays valid until revoked — exchange the key for a narrowly scoped, short-TTL token per purpose, with a revocation list.
 - [ ] [CUT] Grant expiry — access lasts until the owner revokes it — optional `expires_at` (7 or 30 days) on grants and consent approvals.
@@ -137,4 +134,4 @@ Work dropped from the plan to make the 2026-11-17 demo. See the Pivot Log in the
 - [ ] [CUT] Semantic dedup on write — repeated syncs can store near-identical facts — a similarity check against the same source before insert.
 - [ ] [CUT] A vault-wide sensitivity ceiling — the owner can't switch off a whole tier for every app at once — one owner setting that overrides every grant.
 - [ ] [CUT] Owner feedback on disclosures — the owner can't flag "shouldn't have shared" from the access log — a flag action that removes that source from the app.
-- [ ] [CUT] Full test coverage for Phases 06–09 — only the policy engine has unit tests — DAL, route and action tests as in Phases 00–05.
+- [ ] [CUT] Full test coverage for Phases 06–09 — only the policy engine has unit tests — repository, service, controller and action tests as in Phases 00–05.

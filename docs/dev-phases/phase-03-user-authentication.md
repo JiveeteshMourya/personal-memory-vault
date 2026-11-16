@@ -4,11 +4,11 @@
 
 ## Goal
 
-The vault owner can sign up, sign in and sign out. The dashboard is only reachable when signed in. The rest of the app identifies the owner through one DAL function.
+The vault owner can sign up, sign in and sign out. The dashboard is only reachable when signed in. The rest of the app identifies the owner through one middleware function, `requireUser`.
 
 ## Coupling boundary
 
-- **Owns:** the Better Auth config, its tables (`src/server/models/auth.model.ts` and its migration), the auth pages and actions (`src/app/(auth)/`), the auth route handler, `src/proxy.ts`, `src/server/middlewares/require-user.middleware.ts`, and the shell's user menu.
+- **Owns:** the Better Auth config, its tables (`src/server/models/auth.model.ts`), the auth pages (`src/app/(auth)/`) with their content and actions (`src/client/features/auth/`), the auth service, the auth route handler, `src/proxy.ts`, `src/server/middlewares/require-user.middleware.ts`, and the shell's user menu.
 - **Must not:** let anything outside `src/server/lib/auth*.ts` and `src/server/middlewares/require-user.middleware.ts` import Better Auth directly.
 
 ## Decisions (made with the user, 2026-11-15)
@@ -50,7 +50,7 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
   - Every content component and Server Action that reads or writes the owner's data calls `requireUser()` first and passes `user.id` to the services; never trust the proxy.
 - **Owner id:** `users.id` is the vault owner id, a **uuid**. Every feature table references it as `user_id`:
   ```ts
-  import { users } from "./auth";
+  import { users } from "./auth.model";
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" });
@@ -60,12 +60,12 @@ The vault owner can sign up, sign in and sign out. The dashboard is only reachab
 
 ## Deliverables
 
-Auth config and migration, auth route handler, auth pages and actions, `src/proxy.ts`, `src/server/middlewares/require-user.middleware.ts`, the shell user menu, env vars.
+Auth config and model, auth route handler, auth service, auth pages and actions, `src/proxy.ts`, `src/server/middlewares/require-user.middleware.ts`, the shell user menu, env vars.
 
 ## Acceptance criteria & verification
 
 - [x] Sign up → you land on `/dashboard`. Sign out → `/dashboard` redirects to `/sign-in`.
-- [x] A Server Action or DAL call that needs a user fails without a session, even if the proxy is bypassed.
+- [x] A Server Action or content component that needs a user fails without a session, even if the proxy is bypassed.
 - [x] Two accounts each see only their own name in the shell.
 - [x] Lint, typecheck, tests and format pass.
 
@@ -82,7 +82,7 @@ Done 2026-11-15.
   - `generateId: "uuid"`: on Postgres, Better Auth leaves the id empty and the column default (`gen_random_uuid()`) fills it.
   - `nextCookies()` is the last plugin, so Server Actions can set and clear the cookie.
   - `authHandler = toNextJsHandler(auth)` is exported for the route file, so the route doesn't import `better-auth`.
-- **Schema (`src/server/models/auth.model.ts`, `drizzle/0001_auth.sql`):**
+- **Schema (`src/server/models/auth.model.ts`):**
   - Better Auth's four core tables.
   - The JS keys are Better Auth's field names (the adapter maps by them); the columns are snake_case.
   - uuid ids, timestamptz everywhere, cascading FKs to `users`, and the indexes `sessions_user_id_idx`, `accounts_user_id_idx`, `verifications_identifier_idx`.
@@ -108,9 +108,9 @@ Done 2026-11-15.
   - `SignOutItem` (client) calls the `signOut` action in a transition.
 - **Env:** `BETTER_AUTH_SECRET` (min 32 chars) and `BETTER_AUTH_URL` are validated in `env.ts`, documented in `.env.example`, and given placeholders in `test/setup.ts`.
 - **Tests (local, git-ignored):** 30 pass, including:
-  - **DAL:** the DTO shape, the `requireUser` redirect, error mapping.
+  - **Middleware and service:** the DTO shape, the `requireUser` redirect, error mapping.
   - **Proxy:** redirect without a cookie, pass-through with one, the matcher.
-  - **Actions:** field errors without calling the DAL, no password echo, trimming, redirects, sign-out.
+  - **Actions:** field errors without calling the service, no password echo, trimming, redirects, sign-out.
 
 **Verified:**
 
@@ -132,8 +132,8 @@ Done 2026-11-15.
 
 **Gotchas for later phases:**
 
-- **Read the user behind `<Suspense>`.** `getCurrentUser`/`requireUser` read `headers()`. Under Cache Components, a page that awaits them at the top level fails the build. Push the read into a component inside `<Suspense>`, or call it from a DAL function used inside one.
-- **Feature pattern:** a content component or Server Action starts with `const user = await requireUser();` and passes `user.id` to services; repositories filter every query by it. In Server Actions and Route Handlers, React `cache` doesn't dedupe; each call checks the session again, which is fine.
+- **Read the user behind `<Suspense>`.** `getCurrentUser`/`requireUser` read `headers()`. Under Cache Components, a page that awaits them at the top level fails the build. Push the read into a content component inside `<Suspense>`.
+- **Feature pattern:** a content component or Server Action starts with `const user = await requireUser();` and passes `user.id` to services; repositories filter every query by it. In Server Actions and controllers, React `cache` doesn't dedupe; each call checks the session again, which is fine.
 - **Redirects inside a stream:** `redirect()` in a Suspense'd component arrives after the static shell has been sent. The browser follows it with a meta refresh plus a client redirect. Anything in the static shell is visible before that, so **never put owner data outside the boundary.**
 - **Why the proxy is one-way:** if it also sent cookie-holders away from `/sign-in`, a stale or revoked cookie would loop forever (proxy → `/dashboard` → `requireUser` → `/sign-in` → proxy → …). The `(auth)` layout's real session check handles that direction.
 - **`nextCookies()` must stay the last plugin.** Without it, `auth.api.signInEmail` etc. in a Server Action don't set the cookie.

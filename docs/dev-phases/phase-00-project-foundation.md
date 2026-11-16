@@ -4,11 +4,11 @@
 
 ## Goal
 
-Turn the create-next-app scaffold into the skeleton every later phase builds on. That means a validated environment, a logger, the shared error helpers for route handlers, a test runner and a health endpoint. No product features.
+Turn the create-next-app scaffold into the skeleton every later phase builds on. That means a validated environment, a logger, the shared error handling for `/api/v1` controllers, a test runner and a health endpoint. No product features.
 
 ## Coupling boundary
 
-- **Owns:** `src/server/lib/env.ts`, `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/middlewares/error-handler.middleware.ts`, `GET /api/v1/health`, the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
+- **Owns:** `src/server/lib/env.ts`, `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/lib/api-error.ts`, `src/server/middlewares/error-handler.middleware.ts`, `GET /api/v1/health` (`src/server/controllers/health.controller.ts`), the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
 - **Must not:** add a database, auth, or any visual design. Phase 01 owns the look; leave a plain placeholder home page.
 - Create folders only when a file goes in them. The layout follows the **Conventions** table in [phase-index.md](phase-index.md).
 
@@ -35,15 +35,16 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
   - Server-only.
 - `src/instrumentation.ts`: `register()` imports `env`, so validation runs when the server starts, not on first use.
 - `src/server/lib/logger.ts`: `logger.info/warn/error(message, meta?)`. **Never log memory content or secrets.**
+- `src/server/lib/api-error.ts`: the `ApiError` class `(status, code, message, details?)` that services and middlewares throw.
 - `src/server/middlewares/error-handler.middleware.ts`:
-  - `ApiError` class `(status, code, message, details?)`.
   - `errorResponse(error: unknown): Response` maps `ApiError`, validation errors and unknown errors to `Response.json({ error: { code, message, details? } }, { status })`.
+  - `withErrorHandler(controller)` wraps a controller so anything it throws goes through `errorResponse`.
   - Unknown errors are logged and returned as a generic 500.
   - Next.js control-flow errors (`connection()` during prerender, `notFound()`, `redirect()`) are rethrown, never mapped.
-- `src/app/api/v1/health/route.ts`: `GET` returns `{ status: "ok" }` at request time.
+- `GET /api/v1/health`: `health.controller.ts` answers at request time, and `src/app/api/v1/health/route.ts` re-exports it.
 - Test setup (a preload that stubs `server-only`) with example tests (`errorResponse` mapping, env parsing).
 - `package.json` scripts: `typecheck` (`tsc --noEmit`) and `test`.
-- `.env.example` (empty for now; each phase appends its vars), with the `.gitignore` exception.
+- `.env.example`, documenting every var the env schema reads, with the `.gitignore` exception.
 - Replace the boilerplate: a minimal placeholder `page.tsx`. Remove the unused `public/*.svg` files.
 - `README.md`: Bun commands (`bun install`, `bun dev`, `bun test`, …) and a pointer to `docs/dev-phases/phase-index.md`.
 
@@ -53,19 +54,19 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 
 ## Contract provided
 
-- `import { env } from "@/server/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **Every later phase adds its vars to the schema and to `.env.example`.**
+- `import { env } from "@/server/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **A new env var goes into the schema and into `.env.example`.**
 - `import { logger } from "@/server/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, code?, stack }` only. `code` is kept only when it's a string: a system code or Postgres SQLSTATE, never data.
-- `import { ApiError, errorResponse } from "@/server/middlewares/error-handler.middleware"`. Every route handler wraps its body in `try { … } catch (e) { return errorResponse(e) }`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
+- `import { ApiError } from "@/server/lib/api-error"` and `import { withErrorHandler } from "@/server/middlewares/error-handler.middleware"`. Every controller is `export const getX = withErrorHandler(async request => …)`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
   - `new ApiError(status, code, message, details?)`. Codes are snake_case strings (`unauthorized`, `forbidden`, `not_found`, …).
-  - A thrown `ZodError` becomes `400 validation_error` with `details = z.flattenError(error)`. Handlers can `schema.parse(body)` and let it throw.
+  - A thrown `ZodError` becomes `400 validation_error` with `details = z.treeifyError(error)`, a tree because request bodies nest. Controllers can `schema.parse(body)` and let it throw.
   - Anything else becomes a logged `500 internal_error` with the generic message `"Something went wrong"`.
 - The error body shape `{ error: { code: string, message: string, details?: unknown } }`. `details` is omitted when absent.
-- `GET /api/v1/health` returns `200 { status: "ok" }`. Phase 02 extends it with a DB check.
-- `bun test` picks up `**/*.test.ts`. Test files are git-ignored: they stay local and are never committed. The tracked `test/setup.ts` preload stubs `server-only`, so server modules (DAL, `env`) can be imported in tests.
+- `GET /api/v1/health` answers at request time. With Phase 02's database check it returns `200 { status: "ok", db: "ok" }`, or `503` when the database is unreachable.
+- `bun test` picks up `**/*.test.ts`. Test files are git-ignored: they stay local and are never committed. The tracked `test/setup.ts` preload stubs `server-only`, so server modules (services, repositories, `env`) can be imported in tests.
 
 ## Deliverables
 
-`src/server/lib/env.ts` (+ test), `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/middlewares/error-handler.middleware.ts` (+ test), `src/app/api/v1/health/route.ts`, `test/setup.ts`, `.env.example`, updated `package.json` and `bunfig.toml`, `README.md`, `.gitignore`, a cleaned `src/app/page.tsx`.
+`src/server/lib/env.ts` (+ test), `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/lib/api-error.ts`, `src/server/middlewares/error-handler.middleware.ts` (+ test), `src/server/controllers/health.controller.ts` and its `route.ts`, `test/setup.ts`, `.env.example`, updated `package.json` and `bunfig.toml`, `README.md`, `.gitignore`, a cleaned `src/app/page.tsx`.
 
 ## Acceptance criteria & verification
 
@@ -81,12 +82,12 @@ Done 2026-11-14.
 **Built:**
 
 - **Libraries:** zod 4.6.7, `server-only` and `@types/bun`.
-- **Env:** `env` (seeded with `NODE_ENV` only; there are no secrets yet), validated at startup by `src/instrumentation.ts`.
-- **Errors and logging:** the console-based `logger`, plus `ApiError` / `errorResponse`.
+- **Env:** the `env` schema, validated at startup by `src/instrumentation.ts`.
+- **Errors and logging:** the console-based `logger`, `ApiError`, and `errorResponse` / `withErrorHandler`.
 - **Health:** `GET /api/v1/health`.
-- **Tests:** `bun test` with a `server-only` stub preload. There are 6 tests.
+- **Tests:** `bun test` with a `server-only` stub preload.
 - **Scripts:** `typecheck` (`next typegen && tsc --noEmit`) and `test`.
-- **Cleanup:** the placeholder home page, the `.env.example` + `.gitignore` exception, and the new README. The boilerplate `public/` SVGs were deleted, so `public/` no longer exists; recreate it when an asset needs it.
+- **Cleanup:** the placeholder home page, the `.env.example` + `.gitignore` exception, and the README. There is no `public/` folder: create it when an asset needs one.
 
 **Verified:**
 
@@ -97,8 +98,8 @@ Done 2026-11-14.
 
 **Gotchas for later phases:**
 
-- **Health stays dynamic via `await connection()`.** With Cache Components, a GET handler that touches no runtime data is prerendered at build. During that prerender `connection()` rejects on purpose. `errorResponse` calls `unstable_rethrow` first, so this (and `notFound()`/`redirect()`) passes through the standard `try/catch`. Without it, every build logged a fake "Unhandled API error".
-- **Invalid JSON is a 500 unless you catch it.** Validate route input with `schema.parse(...)` (a `ZodError` becomes a 400). `await request.json()` on a malformed body throws a `SyntaxError`, which would be a 500, so catch it and throw `ApiError(400, "invalid_json", …)` where bodies are parsed.
+- **Health stays dynamic via `await connection()`.** With Cache Components, a GET handler that touches no runtime data is prerendered at build. During that prerender `connection()` rejects on purpose. `errorResponse` calls `unstable_rethrow` first, so this (and `notFound()`/`redirect()`) passes through `withErrorHandler` instead of being logged as an "Unhandled API error".
+- **Read bodies with `validateBody` (Phase 06).** It turns malformed JSON into a 400 `validation_error`. A bare `await request.json()` throws a `SyntaxError`, which would answer 500.
 - **Env is validated only when imported.** `next build` doesn't run `register()`, so a build with missing env succeeds unless a prerendered module imports `env`.
 - **`typecheck` regenerates route types** (`next typegen`), so it works on a fresh clone without running `bun dev` first.
 - **Skills:** zod has no official agent skill (only third-party ones), so none was installed.

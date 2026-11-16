@@ -33,7 +33,7 @@ bun dev                      # http://localhost:3000
 | `bun run format`       | Format with `bun fmt` (settings in `bunfig.toml`)                   |
 | `bun run format:check` | Check formatting without writing                                    |
 | `bun run db:generate`  | Generate a SQL migration from the schema (`--name <change>`)        |
-| `bun run db:migrate`   | Apply pending migrations (uses `DIRECT_URL`)                        |
+| `bun run db:migrate`   | Apply pending migrations                                            |
 | `bun run db:studio`    | Browse the database in Drizzle Studio                               |
 | `bun run seed:jane`    | Seed ~60 demo memories (`[email] [--reset]`; `--reset` wipes first) |
 | `bun run reindex`      | Rebuild the semantic index from Postgres (after seeding)            |

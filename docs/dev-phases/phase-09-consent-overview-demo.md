@@ -16,26 +16,33 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
   - **`POST /api/v1/consent-requests`**, per [public-api.md](../public-api.md), audited as `consent`
   - a pending-requests panel on `/dashboard/permissions`
   - **Approve** opens the request pre-filled. The owner can narrow the categories and the cap, and for reads pick the allowed **sources**. One transaction (`approveConsentRequest`) then writes the grants and sources: it only narrows the request, and never lowers a cap the app already holds. **Deny** records the decision and changes nothing else.
-- **Overview `/dashboard`** (replaces the placeholder):
+- **Overview `/dashboard`** (`src/client/features/overview/`):
   - memory counts by category and by tier
   - connected apps
   - pending consent requests (linked)
   - the last 5 access events (linked to the access log)
-- **Demo seed:** `scripts/seed-jane.ts` covers all 16 categories and every tier, with new-field values (provenance, importance, tags). It includes clearly `private` and `protected` memories (a diagnosis, debts, a relationship issue), so non-disclosure can be shown. It stays **app-agnostic**: apps are registered live in the UI during the demo. The seed ends by reminding you to run `bun run reindex`.
+- **Demo seed:** `scripts/seed-jane.ts` covers all 16 categories and every tier, with label values (provenance, importance, tags). It includes clearly `private` and `protected` memories (a diagnosis, debts, a relationship issue), so non-disclosure can be shown. It stays **app-agnostic**: apps are registered live in the UI during the demo. The seed ends by reminding you to run `bun run reindex`.
 - **`docs/demo-runbook.md`:**
   - **Startup:** `docker compose up -d` (Postgres and Qdrant) → `bun dev` (vault :3000), then the hub on :3001. The Qdrant index persists in its Docker volume, so `bun run reindex` is needed only after reseeding.
   - **Reset:** re-seed
   - **Demo flow:** register apps → grant → hub apps write → context from another app → untick a source → consent request → access log
   - **Fallback:** the Playground, if the hub misbehaves
-- Finalize `docs/public-api.md` (every endpoint live, status line updated).
+- Complete `docs/public-api.md`: every endpoint documented.
 - **Prune agent tooling:** remove the `shadcn` and `supabase-postgres-best-practices` skills (no vault UI or schema work remains), and update the index's tooling table and Decisions Log.
 
 ## Contract provided
 
-- `POST /api/v1/consent-requests`, as documented.
+- `POST /api/v1/consent-requests` (`consent-request.controller.ts`), as documented.
 - `bun run seed:jane [email] [--reset]` + `bun run reindex` give a repeatable demo vault.
-- `@/server/services/consent.service`: low-level `createConsentRequest`; owner-scoped `listPendingConsentRequests`, `approveConsentRequest`, `denyConsentRequest`.
-- Owner-scoped counts for the Overview: `getMemoryCounts` (`@/server/services/memory.service`), `getGrantCounts` (`@/server/services/grant.service`). `listAccessEvents(page, pageSize)`.
+- **Service** (`@/server/services/consent.service`):
+  - app-facing: `createConsentRequest(app, input)`
+  - owner-facing: `listPendingConsentRequests(userId)`, `approveConsentRequest(userId, id, decision)`, `denyConsentRequest(userId, id)`
+  - types: `ConsentRequestDTO` and `ConsentDecision` (`@/shared/types/consent.types`), and `CONSENT_STATUSES` (`@/shared/constants/permissions`)
+- **The Overview** reads `getMemoryCounts`, `getGrantCounts`, `listApps`, `listPendingConsentRequests` and `listAccessEvents(userId, 1, 5)`.
+- **Shared UI and labels:**
+  - `@/client/components/access-event-summary`: access-event labels, `OutcomeBadge` and `summaryOf`
+  - `@/client/components/app-monogram`
+  - `SENSITIVITY_CAP_LABELS` and `formatCategoryList` in `@/shared/constants/memory-taxonomy`
 
 ## Acceptance
 
@@ -51,13 +58,8 @@ Done 2026-11-16.
 - **Consent:**
   - The reason is stored encrypted (`reason_encrypted`).
   - Approval is one transaction: it can narrow a request, never widen it, and never lowers an existing cap.
-  - Approval locks the apps before the request row (an app delete's order).
+  - Approval locks the apps before the request row (an app delete's order), reusing `lockOwnedApps` from the grant repository.
   - The access log hides the outcome badge on consent events, and labels the reason "Reason".
-- **Shared code moved:**
-  - access-event labels and `OutcomeBadge` → `@/client/components/access-event-summary`
-  - the app monogram → `@/client/components/app-monogram`
-  - `SENSITIVITY_CAP_LABELS` and `formatCategoryList` → `@/shared/constants/memory-taxonomy`
-  - `lockOwnedApps` is now exported from `@/server/repository/grant.repository`
 - **Overview:** CSS only, following the `dataviz` skill:
   - topics as ranked bars
   - tiers as a tall segmented bar on a validated ordinal slate ramp (the `--tier-*` tokens in `globals.css`)
@@ -70,6 +72,5 @@ Done 2026-11-16.
   - Overview counts equal to SQL
   - reindex; a `protected` diagnosis withheld under a `personal` cap
   - a clean dev log and next-devtools check
-- **Jane's account wasn't reseeded**, so her three existing apps stay. Run `bun run seed:jane --reset` and `bun run reindex` before the demo ([demo-runbook.md](../demo-runbook.md)).
-- **The hub (`gen-ai-apps-hub`) is still boilerplate.** Its "Request access" button calls `POST /api/v1/consent-requests` as documented. Until it's built, the runbook's Playground and curl fallback covers the demo.
+- **The hub (`gen-ai-apps-hub`) isn't built yet.** Its "Request access" button is planned to call `POST /api/v1/consent-requests` as documented. Until then, the runbook's Playground and curl fallback covers the demo ([demo-runbook.md](../demo-runbook.md)).
 - **Agent tooling:** the `shadcn` and `supabase-postgres-best-practices` skills and `skills-lock.json` were removed. Only the `next-devtools` MCP remains.

@@ -4,8 +4,7 @@ import { z } from "zod";
 // Every phase that needs a new env var adds it here and to `.env.example`.
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  // The app's Postgres connection; on hosted Supabase, the transaction pooler. drizzle-kit reads
-  // DIRECT_URL on its own (see drizzle.config.ts); the app never does.
+  // The docker-compose Postgres. drizzle-kit reads the same URL on its own (drizzle.config.ts).
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   // Signs and encrypts Better Auth's cookies and tokens. Rotating it signs everyone out.
   BETTER_AUTH_SECRET: z.string().min(32),

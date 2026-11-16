@@ -6,8 +6,8 @@ import { connectedApps } from "./app.model";
 import { users } from "./auth.model";
 import { sqlList } from "./sql-list";
 
-// Access an app asked the owner for (Phase 09). The owner approves, maybe narrowed, or denies it on
-// the dashboard; approving writes grants, never this table's own columns. The reason is the app's
+// Access an app asked the owner for. The owner approves, maybe narrowed, or denies it on the
+// dashboard; approving writes grants, never this table's own columns. The reason is the app's
 // own free text, so it's encrypted like the access log's purpose.
 
 export const consentRequests = pgTable(

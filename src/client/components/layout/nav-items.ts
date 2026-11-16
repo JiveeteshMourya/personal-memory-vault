@@ -14,7 +14,7 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-// The dashboard's sections, in sidebar order. Feature phases add their entry here.
+// The dashboard's sections, in sidebar order.
 export const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboardIcon },
   { href: "/dashboard/memories", label: "Memories", icon: ArchiveIcon },

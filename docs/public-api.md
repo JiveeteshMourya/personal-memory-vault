@@ -9,7 +9,7 @@ The rich optional fields exist to make that context better.
 
 Who may see what is decided by the [classification model](classification-model.md) and the owner's permissions. An app is never told more than it's allowed.
 
-> **Status:** every endpoint below is live (Phase 09 completed the set). Any change to an endpoint updates this file.
+> Any change to an endpoint updates this file.
 
 ## Conventions
 

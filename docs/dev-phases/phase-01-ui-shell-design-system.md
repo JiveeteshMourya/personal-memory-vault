@@ -34,7 +34,6 @@ The agent has full design freedom. The user will ask for edits.
 ## Skills / plugins to look for
 
 - shadcn's official skill / MCP (if shadcn is chosen).
-- Already installed: `vercel-composition-patterns`, `vercel-react-best-practices`, `web-design-guidelines`.
 - Anthropic's `frontend-design`: if wanted, ask before enabling it in project scope.
 
 ## In scope (MVP slice)
@@ -59,8 +58,8 @@ The agent has full design freedom. The user will ask for edits.
   - `AppShell` wraps every dashboard page (already applied by `src/app/(dashboard)/layout.tsx`).
   - `PageHeader({ title, description?, actions? })`: every dashboard page starts with one. `actions` is where page-level buttons go.
   - `EmptyState({ icon, title, description, action? })`: built on the shadcn `Empty` primitive.
-- **Dashboard route map** (above). Feature phases replace the placeholder content of their page. They do not restructure the shell.
-- **Nav config:** the single `navItems` array in `src/client/components/layout/nav-items.ts` (`{ href, label, icon }`). Later phases add entries there. Active highlighting is automatic (longest matching href).
+- **Dashboard route map** (above). Each feature phase fills its page from `src/client/features/<page>/`: `page.tsx` keeps `metadata` and renders `<XContent />`. Phases never restructure the shell.
+- **Nav config:** the single `navItems` array in `src/client/components/layout/nav-items.ts` (`{ href, label, icon }`). A new section adds its entry there. Active highlighting is automatic (longest matching href).
 - **Theme:** `src/client/lib/theme.ts` (`Theme`, `setTheme`, `applyTheme`, `readStoredTheme`), `ThemeToggle` from `src/client/components/theme-toggle.tsx`. Dark mode is the `.dark` class on `<html>`.
 - **Toasts:** `import { toast } from "@/client/components/ui/toast"` and call `toast.add({ title, description?, type? })` from client code. `<Toaster />` is mounted once in the root layout.
 - **Shared brand pieces:** `Logo` / `LogoMark` from `src/client/components/logo.tsx`.
@@ -135,7 +134,7 @@ Tokens, primitives, layout components, landing page, dashboard layout, six place
   - Custom triggers use `render={<Button … />}`, not `asChild`.
   - A `Button` rendering a link needs `render={<Link href="…" />} nativeButton={false}`.
   - `Select` takes an `items` prop.
-  - Read `.claude/skills/shadcn/rules/base-vs-radix.md` before using a primitive.
+  - For new primitive work, re-add the `shadcn` skill (see the index's Agent tooling) and read its `rules/base-vs-radix.md`.
 - **shadcn skill rules:**
   - Forms use `FieldGroup` + `Field`.
   - Menu items go inside their `Group`.
@@ -150,4 +149,4 @@ Tokens, primitives, layout components, landing page, dashboard layout, six place
   - Never read the theme on the server (no cookie). The page always prerenders light, and the script corrects it before paint.
   - UI that depends on the theme must use `dark:` variants or tokens, not JS state, or it will mismatch on hydration.
 - **Client vs server components:** shadcn components that need the client already carry `"use client"`. Pages and layout pieces can compose them as Server Components (e.g. `UserMenu`, `VaultLens` and `EmptyState` are server-rendered).
-- **The user menu is a placeholder.** Phase 03 replaces the contents of `src/client/components/layout/user-menu.tsx`.
+- **The user menu belongs to Phase 03.** `src/client/components/layout/user-menu.tsx` shows the signed-in owner and signs them out.

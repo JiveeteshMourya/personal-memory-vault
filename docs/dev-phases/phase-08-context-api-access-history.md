@@ -10,7 +10,7 @@ A connected app asks a natural-language question with rich optional hints, and g
 
 ## In scope
 
-- **`requestContext(identity, input, channel)`** in `src/server/services/context.service.ts` runs the read flow from [public-api.md](../public-api.md):
+- **`requestContext(identity, request, channel)`** in `src/server/services/context.service.ts` runs the read flow from [public-api.md](../public-api.md):
   1. `getAccessScope(…, "read")`. With no categories or no allowed sources, **403 `read_denied`**.
   2. The effective categories are the granted ones ∩ `categories` − `excludeCategories`. `withheldCategories` lists the requested categories that aren't granted, and nothing else.
   3. The sources are the allowed sources ∩ `origin` (`other_apps` drops this app; `this_app` keeps only it).
@@ -30,11 +30,11 @@ A connected app asks a natural-language question with rich optional hints, and g
      - **then enforce the character cap on the server**
   10. `recordAccess` with the disclosed memory ids (the ones the text draws on), the categories, the withheld count, and the encrypted query and purpose.
   11. Return `{ requestId, context, charCount, coverage, withheldCategories, sources? }`.
-- **`POST /api/v1/context`:** `requireApp` → strict parse → `requestContext(…, "api")`.
-- **`/dashboard/access-log`** (replaces the placeholder):
+- **`POST /api/v1/context`** (`context.controller.ts`): `requireApp` → `validateBody` → `requestContext(…, "api")`.
+- **`/dashboard/access-log`** (`src/client/features/access-log/`):
   - a paginated list: app, action, purpose and query (decrypted for the owner), outcome, categories, time
   - expanding a row shows the disclosed memories
-- **`/dashboard/playground`** (replaces the placeholder):
+- **`/dashboard/playground`** (`src/client/features/playground/`):
   - pick an app, then fill in `query`, `purpose`, `task`, `origin`, `categories`, `maxChars` and `perspective`
   - a Server Action runs `requestContext(…, "playground")`
   - shows the context, the coverage, and the disclosed memories with their tier and source
@@ -43,9 +43,14 @@ A connected app asks a natural-language question with rich optional hints, and g
 
 ## Contract provided
 
-- **`POST /api/v1/context`**, as documented in [public-api.md](../public-api.md).
-- `requestContext(identity, input, channel)` from `@/server/services/context.service` (Phase 09 doesn't need it; the hub uses only HTTP).
-- The access log shows every `write`, `retract` and `context` event. Phase 09 adds `consent`.
+- **`POST /api/v1/context`**, as documented in [public-api.md](../public-api.md). The hub uses only HTTP.
+- **Service** (`@/server/services/context.service`): `requestContext(identity, request, channel)` returns `{ response, disclosed }`. `identity` is `Pick<AppIdentity, "userId" | "appId" | "appName">`: an API caller from `requireApp`, or the owner's pick in the Playground. Request defaults live here. `ContextResponse` is in `@/shared/types/context.types`.
+- **AI** (`@/server/lib/ai`): `rewriteQuery` and `projectContext`.
+- **Shared:**
+  - `@/shared/constants/context-options` holds the request enums and their labels, client-safe for the Playground.
+  - `@/shared/validators/api-fields` holds the zod fields every `/api/v1` body shares.
+  - `SourceLabel` in `@/client/components/memory-badges` takes `appName`.
+- **Owner-facing:** `listMemoriesByIds(userId, ids)` (Phase 04's memory service) loads the memories an access-log page references. The access log shows every `write`, `retract`, `context` and `consent` event; consent rows are Phase 09's.
 
 ## Acceptance
 
@@ -62,21 +67,16 @@ A connected app asks a natural-language question with rich optional hints, and g
 
 Done 2026-11-16.
 
-- **Pivot (user, mid-phase): the projection is capped at 100 characters, not 100 words.** `maxWords`/`wordCount` became `maxChars` (20–100, default 100)/`charCount`. The model gets a word budget (`maxChars / 8`), because models count words better than characters. The server then keeps the whole sentences or bullet lines that fit, and only cuts inside a sentence (with "…") when even the first is too long. It counts UTF-16 units, so the cap holds however an app counts.
-- **Disclosure = what the text draws on.** The projection uses Structured Outputs to return `{ context, usedMemories }`. The access log, `coverage` and `sources` list those memories. If the model names none, everything it saw is logged, so the log can over-report but never comes up empty. This replaces the planned "everything sent counts", which logged 19 memories for one 100-character sentence.
+- **The projection is capped at 100 characters** (`maxChars`, 20–100, default 100; the response's `charCount`). The model gets a word budget (`maxChars / 8`), because models count words better than characters. The server then keeps the whole sentences or bullet lines that fit, and only cuts inside a sentence (with "…") when even the first is too long. It counts UTF-16 units, so the cap holds however an app counts.
+- **Disclosure = what the text draws on.** The projection uses Structured Outputs to return `{ context, usedMemories }`. The access log, `coverage` and `sources` list those memories. If the model names none, everything it saw is logged, so the log can over-report but never comes up empty. Counting everything sent would log 19 memories for one 100-character sentence.
 - **No AI calls before authorization.** A 403 comes before any AI call. A request whose `categories`/`excludeCategories`/`origin` leave nothing to search makes no AI call at all. Search hits below `MIN_SIMILARITY = 0.2` are dropped, so an unrelated query returns `""` with no projection. Measured: unrelated top score 0.14, relevant 0.26–0.53.
-- **Contract:**
-  - `requestContext(identity, request, channel)` returns `{ response, disclosed }`, where identity is `Pick<AppIdentity, "userId" | "appId" | "appName">` and defaults live in the DAL.
-  - Also new: `listMemoriesByIds` (owner-scoped), `rewriteQuery` and `projectContext` in `@/server/lib/ai`, and `@/shared/constants/context-options` (enums and labels, client-safe).
-  - `@/shared/validators/api-fields` holds the shared zod fields, moved out of the memories route.
-  - `memory-badges` moved to `@/client/components`, and `SourceLabel` takes `appName`.
 - **UI:** access-log rows are native `<details>`; the page preloads (and decrypts) the memories its 20 events reference. Playground runs are real requests, logged with channel `playground`.
-- **Smoke script (31 checks):** the `VAULT_API_KEY` app now also needs read grants for activity and sleep (Personal), no finance read grant, and **only itself** under "Reads data from".
-- **Verified** with real OpenAI and Pinecone:
+- **Smoke script (31 checks):** the `VAULT_API_KEY` app needs read grants for activity and sleep (Personal), no finance read grant, and **only itself** under "Reads data from".
+- **Verified** with real OpenAI:
   - smoke 31/31
   - relevant, irrelevant, bullets, second person, conversation rewrite, protected-under-personal, finance withheld, and unticking a source
   - access-log rows (ids, outcome, encrypted query and purpose)
   - a clean dev log and next-devtools check
   - lint, typecheck, format and build
-- **Gotcha: the network to OpenAI and Pinecone was flaky this session.** There were two transient 502s, and Pinecone queries took up to 25 s. Retrying worked. Check connectivity before the demo.
+- **Gotcha: every write and read needs OpenAI.** A flaky connection shows up as a transient `502 processing_failed`; retrying works. Check connectivity before the demo.
 - **Hub handoff:** `gen-ai-apps-hub` must send `maxChars` and read `charCount`. Expect about one or two facts per answer at 100 characters.

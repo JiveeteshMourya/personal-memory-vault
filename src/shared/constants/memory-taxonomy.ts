@@ -2,7 +2,7 @@
 // semantic index and AI classification all build on these lists.
 // No imports: the schema files (loaded by drizzle-kit) and client components use it too.
 
-/** Platform-agnostic topics: they fit any kind of GenAI app, not only wellbeing. */
+/** Platform-agnostic topics that fit any kind of GenAI app. */
 export const MEMORY_CATEGORIES = [
   "identity",
   "preferences",

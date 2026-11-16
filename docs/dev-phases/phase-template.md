@@ -53,7 +53,7 @@ The interfaces other phases may rely on: function signatures, routes, request an
 _Filled in when the phase is complete:_
 
 - what was built
-- deviations from this doc
-- contract changes
 - env vars added
 - gotchas for the phases that follow
+
+Fold any deviation into the sections above, so the doc describes what was built. Record a changed approach in the index's Pivot Log.

@@ -10,9 +10,8 @@ import { sqlList } from "./sql-list";
 import { connectedApps } from "./app.model";
 import { users } from "./auth.model";
 
-// The owner's memories (Phase 04; app-written labels since Phase 07). Content and annotations are
-// encrypted by the app (`encryptField`) before they get here: no column holds plaintext content.
-// The plaintext columns are labels the vault filters on, never content.
+// The owner's memories. Content and annotations are encrypted (`encryptField`) before they get
+// here: no column holds plaintext content. The plaintext columns are labels the vault filters on.
 
 export const MEMORY_SOURCE_TYPES = ["user", "app"] as const;
 

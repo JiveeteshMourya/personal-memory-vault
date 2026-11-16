@@ -1,6 +1,6 @@
 import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-// Better Auth's core tables (Phase 03). The JS keys are Better Auth's field names, which its
+// Better Auth's core tables. The JS keys are Better Auth's field names, which its
 // Drizzle adapter maps by; the columns are snake_case. Tables are plural (`usePlural` in
 // src/server/lib/auth.ts), which also keeps clear of Postgres's reserved word `user`.
 // After adding a Better Auth plugin that brings its own fields or tables, add them here by hand

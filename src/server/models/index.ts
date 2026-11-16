@@ -1,5 +1,5 @@
 // The single entry point for table definitions, read by both drizzle-kit and the `db` client.
-// Each feature phase adds `src/server/models/<entity>.model.ts` and re-exports it here:
+// Each entity's table lives in `<entity>.model.ts` and is re-exported here:
 //   export * from "./<entity>.model";
 // Model files use relative imports only, because drizzle-kit loads them outside Next.js.
 export * from "./access-event.model";

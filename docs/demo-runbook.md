@@ -1,10 +1,10 @@
 # Demo Runbook
 
-How to start, reset and present the Personal Memory Vault with the `gen-ai-apps-hub` apps on this PC. The vault runs on `:3000`, the hub on `:3001` and Postgres in Docker. OpenAI and the Pinecone index are hosted, so the PC needs internet access.
+How to start, reset and present the Personal Memory Vault with the `gen-ai-apps-hub` apps on this PC. The vault runs on `:3000`, the hub on `:3001`, and Postgres and the Qdrant index in Docker. OpenAI is the only hosted service, so the PC needs internet access.
 
 ## Once, before the day
 
-- **Vault:** `.env.local` is filled in (see `.env.example`). The `OPENAI_API_KEY` and `PINECONE_API_KEY` must be valid.
+- **Vault:** `.env.local` is filled in (see `.env.example`). The `OPENAI_API_KEY` must be valid.
 - **Hub:** `../gen-ai-apps-hub/.env.local` has `VAULT_URL=http://localhost:3000`, `OPENAI_API_KEY` and `OPENAI_MODEL`. Its `VAULT_KEY_*` values are filled in live during the demo.
 - **Jane's account:** with the vault running, sign up at `http://localhost:3000/sign-up` as `jane@example.com`. A fresh database (after `docker compose down -v`) needs this again.
 - **Rehearse** the whole flow once, then [reset](#reset).
@@ -12,14 +12,14 @@ How to start, reset and present the Personal Memory Vault with the `gen-ai-apps-
 ## Preflight (5 minutes before)
 
 - Docker Desktop is running.
-- Ports 3000, 3001 and 5432 are free. Close any old `bun dev` windows.
+- Ports 3000, 3001, 5432 and 6333 are free. Close any old `bun dev` windows.
 
 ## Cold start
 
 From `personal-memory-vault`:
 
 ```bash
-docker compose up -d       # Postgres 17
+docker compose up -d       # Postgres 17 and Qdrant
 docker compose ps          # wait until postgres shows "healthy"
 bun run db:migrate         # a no-op when the database is up to date
 bun dev                    # http://localhost:3000
@@ -33,7 +33,7 @@ bun dev                    # http://localhost:3001
 
 Check that `curl http://localhost:3000/api/v1/health` returns `{"status":"ok","db":"ok"}`.
 
-The Pinecone index persists in the cloud, so it doesn't need rebuilding after a restart. Run `bun run reindex` only after seeding.
+The Qdrant index persists in its Docker volume, so it doesn't need rebuilding after a restart. Run `bun run reindex` only after seeding.
 
 ## Reset
 
@@ -46,7 +46,6 @@ bun run reindex            # rebuilds the search index (about 10 s)
 
 - `--reset` deletes the apps too, with their keys, grants, sources and consent requests. Every `VAULT_KEY_*` in the hub stops working, which is expected: you register the apps again live.
 - The seed adds about 60 of Jane's own memories, across all 16 topics and all 4 tiers. Among them are clearly sensitive ones: an asthma diagnosis and knee tendinitis (`protected`), credit-card and student-loan debt (`protected`), and tension with her partner Alex (`private`).
-- Wait about 10 seconds after `reindex` before the first context request. The index is eventually consistent.
 
 ## Demo flow (about 10 minutes)
 
@@ -103,8 +102,8 @@ curl http://localhost:3000/api/v1/permissions -H "Authorization: Bearer $KEY"
 
 | Symptom                                         | Fix                                                                                                      |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `502 processing_failed`                         | OpenAI or Pinecone hiccuped (seen during testing). Retry once.                                           |
-| The context is empty right after a write        | The index is eventually consistent. Wait a few seconds and ask again.                                    |
+| `502 processing_failed`                         | OpenAI hiccuped (seen during testing). Retry once.                                                       |
+| `502 processing_failed` on every write and read | Qdrant isn't running. `docker compose up -d`, then check `curl http://127.0.0.1:6333/readyz`.            |
 | `403 read_denied` although read grants are set  | No source is switched on under **Reads data from**.                                                      |
 | `401 unauthorized` from the hub                 | The key was replaced, or the vault was reset. Paste the new key and restart the hub.                     |
 | 500 "… is not a function" after pulling changes | A long-running `bun dev` kept stale modules. Restart it.                                                 |
@@ -114,4 +113,4 @@ curl http://localhost:3000/api/v1/permissions -H "Authorization: Bearer $KEY"
 
 ## Shutting down
 
-`Ctrl+C` both dev servers, then `docker compose stop`. The data persists. `docker compose down -v` deletes the database, and then you need `bun run db:migrate`, the sign-up, the seed and `bun run reindex` again.
+`Ctrl+C` both dev servers, then `docker compose stop`. The data persists. `docker compose down -v` deletes the database and the index, and then you need `bun run db:migrate`, the sign-up, the seed and `bun run reindex` again.

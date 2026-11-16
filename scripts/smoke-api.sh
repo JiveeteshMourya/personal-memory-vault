@@ -187,14 +187,9 @@ request POST /context "${AUTH[@]}" "${JSON[@]}" --data "{$ASK,\"origin\":\"other
 expect "POST /context with origin other_apps → excludes this app's own writes" 200 \
   '"context":""' '"memoriesUsed":0'
 
-# Pinecone is eventually consistent: this run's writes can take a few seconds to be searchable.
 OWN="{$ASK,\"origin\":\"this_app\",\"categories\":[\"activity\",\"sleep\",\"finance\"],\
 \"maxChars\":80,\"includeSources\":true,\"sessionId\":\"$RUN\"}"
-for attempt in 1 2 3 4 5 6; do
-  request POST /context "${AUTH[@]}" "${JSON[@]}" --data "$OWN"
-  [[ "$STATUS" == 200 ]] && ! grep -qF '"memoriesUsed":0' "$BODY" && break
-  sleep 2
-done
+request POST /context "${AUTH[@]}" "${JSON[@]}" --data "$OWN"
 expect "POST /context with origin this_app → a projection of this app's writes" 200 \
   '"requestId":' '"withheldCategories":["finance"]' '"sources":[{"category":'
 refute "POST /context with origin this_app" '"memoriesUsed":0'

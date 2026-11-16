@@ -20,12 +20,15 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_MODEL: z.string().min(1).default("gpt-6-luna"),
   OPENAI_EMBEDDING_MODEL: z.string().min(1).default("text-embedding-3-small"),
-  // Pinecone (serverless): the semantic index. Created on first use if it doesn't exist.
-  PINECONE_API_KEY: z.string().min(1),
-  PINECONE_INDEX: z
+  // Qdrant (docker-compose): the semantic index. The collection is created on first use.
+  // 127.0.0.1 rather than localhost, which can resolve to ::1 while the port is bound to IPv4.
+  QDRANT_URL: z.url({ protocol: /^https?$/ }).default("http://127.0.0.1:6333"),
+  QDRANT_COLLECTION: z
     .string()
-    .regex(/^[a-z0-9-]{1,45}$/, { error: "Lowercase letters, digits and hyphens only." })
-    .default("memory-vault"),
+    .regex(/^[a-z0-9_-]{1,64}$/, {
+      error: "Lowercase letters, digits, hyphens and underscores only.",
+    })
+    .default("memories"),
 });
 
 const parsed = envSchema.safeParse(process.env);

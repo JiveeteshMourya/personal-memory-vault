@@ -7,15 +7,14 @@ context from it; the vault shares only what the user has authorized, for the sta
 ## Prerequisites
 
 - [Bun](https://bun.sh) 1.4
-- [Docker](https://www.docker.com/) (for the local Postgres)
-- An [OpenAI](https://platform.openai.com) API key, and a free [Pinecone](https://app.pinecone.io)
-  account's API key (the semantic index; created on first use)
+- [Docker](https://www.docker.com/) (for the local Postgres and the Qdrant semantic index)
+- An [OpenAI](https://platform.openai.com) API key
 
 ## Setup
 
 ```bash
 bun install
-docker compose up -d         # local Postgres 17 on localhost:5432
+docker compose up -d         # Postgres 17 on localhost:5432, Qdrant on localhost:6333
 cp .env.example .env.local   # then fill in the values (the DB URLs already match compose)
 bun run db:migrate           # apply the migrations
 bun dev                      # http://localhost:3000

@@ -23,7 +23,7 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
   - the last 5 access events (linked to the access log)
 - **Demo seed:** `scripts/seed-jane.ts` covers all 16 categories and every tier, with new-field values (provenance, importance, tags). It includes clearly `private` and `protected` memories (a diagnosis, debts, a relationship issue), so non-disclosure can be shown. It stays **app-agnostic**: apps are registered live in the UI during the demo. The seed ends by reminding you to run `bun run reindex`.
 - **`docs/demo-runbook.md`:**
-  - **Startup:** `docker compose up -d` → `bun dev` (vault :3000), then the hub on :3001. The Pinecone index is cloud-hosted and persists, so `bun run reindex` is needed only after reseeding.
+  - **Startup:** `docker compose up -d` (Postgres and Qdrant) → `bun dev` (vault :3000), then the hub on :3001. The Qdrant index persists in its Docker volume, so `bun run reindex` is needed only after reseeding.
   - **Reset:** re-seed
   - **Demo flow:** register apps → grant → hub apps write → context from another app → untick a source → consent request → access log
   - **Fallback:** the Playground, if the hub misbehaves

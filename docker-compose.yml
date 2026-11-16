@@ -1,5 +1,5 @@
-# Local dev database. Postgres 17 matches the Supabase platform default.
-# Start with `docker compose up -d`; the URLs in .env.example point here.
+# Local dev services: Postgres 17 (matches the Supabase platform default) and the Qdrant vector index.
+# Start with `docker compose up -d`; the URLs in .env.example point here. Ports are bound to localhost.
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,5 +17,16 @@ services:
       timeout: 5s
       retries: 5
 
+  # Keep the image's minor version in step with `@qdrant/js-client-rest` in package.json.
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true" # Qdrant reports anonymous usage stats by default
+    ports:
+      - "127.0.0.1:6333:6333" # REST only; no API key, so never expose it beyond localhost
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   postgres_data:
+  qdrant_data:

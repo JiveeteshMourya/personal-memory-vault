@@ -140,7 +140,7 @@ Potential technologies include:
 
 - **Frontend:** Next.js (React).
 - **Structured Storage:** PostgreSQL (the same engine Supabase hosts), run locally in Docker for the prototype, for structured memories, application records, and permissions.
-- **Semantic Storage:** Pinecone (the free serverless tier for the prototype) for semantic memory retrieval.
+- **Semantic Storage:** Qdrant (self-hosted, run locally in Docker for the prototype) for semantic memory retrieval.
 - **Security:** Application-level encryption of memory content, so the databases only ever hold ciphertext.
 - **Backend/Gateway:** Next.js server-side API routes within the same application.
 - **AI Processing:** Large Language Models, embeddings, semantic search, and retrieval-augmented generation.

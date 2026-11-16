@@ -1,16 +1,14 @@
-// Rebuilds the semantic index from Postgres: for every account, it drops the account's Pinecone
-// namespace (purging stale vectors), then decrypts, embeds and upserts each memory. Run with
-// `bun run reindex` after seeding (the seed writes rows directly, without indexing) or whenever the
-// index may have drifted. Logs counts only, never content.
+// Rebuilds the semantic index from Postgres: for every account, it drops the account's points
+// (purging stale vectors), then decrypts, embeds and upserts each memory. Run with
+// `bun run reindex` after seeding (the seed writes rows directly, without indexing), after wiping the
+// Qdrant volume, or whenever the index may have drifted. Logs counts only, never content.
 
 import { asc, eq } from "drizzle-orm";
-import { Errors } from "@pinecone-database/pinecone";
 import type { MemoryAnnotations, MemoryDTO } from "@/data/memories";
-import { indexMemories, type IndexableMemory } from "@/data/memory-index";
+import { clearIndex, indexMemories, type IndexableMemory } from "@/data/memory-index";
 import { memories, users } from "@/db/schema";
 import { decryptField } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { memoryIndex } from "@/lib/pinecone";
 
 async function memoriesOf(userId: string): Promise<IndexableMemory[]> {
   // Reads the rows itself: the memories DAL imports the session helpers, which need Next.js.
@@ -49,16 +47,10 @@ async function memoriesOf(userId: string): Promise<IndexableMemory[]> {
 }
 
 async function reindex() {
-  const index = await memoryIndex();
   const accounts = await db.select({ id: users.id }).from(users);
   let total = 0;
   for (const { id } of accounts) {
-    try {
-      await index.deleteNamespace(id);
-    } catch (error) {
-      // Nothing indexed for this account yet.
-      if (!(error instanceof Errors.PineconeNotFoundError)) throw error;
-    }
+    await clearIndex(id);
     const owned = await memoriesOf(id);
     await indexMemories(id, owned);
     total += owned.length;

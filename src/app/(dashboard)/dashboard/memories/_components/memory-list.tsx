@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   CategoryBadge,
+  MemoryMeta,
   SensitivityBadge,
   SourceLabel,
 } from "@/app/(dashboard)/dashboard/memories/_components/memory-badges";
@@ -116,6 +117,7 @@ export async function MemoryList({
                   <TableRow key={memory.id}>
                     <TableCell className="min-w-56 py-3 pl-4 whitespace-normal">
                       <p className="line-clamp-2 max-w-prose">{memory.content}</p>
+                      <MemoryMeta memory={memory} />
                       {/* Below md the badge and date columns fold under the text. */}
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
                         <CategoryBadge category={memory.category} />

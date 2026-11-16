@@ -8,6 +8,8 @@ context from it; the vault shares only what the user has authorized, for the sta
 
 - [Bun](https://bun.sh) 1.4
 - [Docker](https://www.docker.com/) (for the local Postgres)
+- An [OpenAI](https://platform.openai.com) API key, and a free [Pinecone](https://app.pinecone.io)
+  account's API key (the semantic index; created on first use)
 
 ## Setup
 
@@ -35,6 +37,7 @@ bun dev                      # http://localhost:3000
 | `bun run db:migrate`   | Apply pending migrations (uses `DIRECT_URL`)                       |
 | `bun run db:studio`    | Browse the database in Drizzle Studio                              |
 | `bun run seed:jane`    | Seed ~30 demo memories into an empty account (`[email]`)           |
+| `bun run reindex`      | Rebuild the semantic index from Postgres (after seeding)           |
 
 Health check: `GET /api/v1/health` returns `200 { "status": "ok", "db": "ok" }`, or `503` with
 `"error"` when the database is unreachable.

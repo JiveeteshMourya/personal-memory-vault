@@ -16,6 +16,16 @@ const envSchema = z.object({
   MEMORY_ENCRYPTION_KEY: z.base64().refine(value => Buffer.from(value, "base64").length === 32, {
     error: "Must be 32 bytes, base64-encoded.",
   }),
+  // OpenAI: one key covers extraction (OPENAI_MODEL) and embeddings (OPENAI_EMBEDDING_MODEL).
+  OPENAI_API_KEY: z.string().min(1),
+  OPENAI_MODEL: z.string().min(1).default("gpt-6-luna"),
+  OPENAI_EMBEDDING_MODEL: z.string().min(1).default("text-embedding-3-small"),
+  // Pinecone (serverless): the semantic index. Created on first use if it doesn't exist.
+  PINECONE_API_KEY: z.string().min(1),
+  PINECONE_INDEX: z
+    .string()
+    .regex(/^[a-z0-9-]{1,45}$/, { error: "Lowercase letters, digits and hyphens only." })
+    .default("memory-vault"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -52,22 +52,29 @@ export const ACCESS_EVENT_PAGE_SIZE = 20;
 // ── Low-level: NOT session-checked. Only for the gateway, with an identity from `requireApp` (or
 // the owner's own app choice in the Playground). ──
 
-/** Records one app access in the owner's access log. */
-export async function recordAccess(event: AccessEventInput): Promise<void> {
-  await db.insert(accessEvents).values({
-    userId: event.app.userId,
-    appId: event.app.appId,
-    appName: event.app.appName,
-    action: event.action,
-    channel: event.channel,
-    outcome: event.outcome,
-    purposeEncrypted: event.purpose ? encryptField(event.purpose) : null,
-    queryEncrypted: event.query ? encryptField(event.query) : null,
-    categories: event.categories ?? [],
-    memoryIds: event.memoryIds ?? [],
-    withheldCount: event.withheldCount ?? 0,
-    sessionId: event.sessionId ?? null,
-  });
+/**
+ * Records one app access in the owner's access log. Returns the event's id, which the API hands back
+ * as `requestId`, so an app's request and the owner's log entry match.
+ */
+export async function recordAccess(event: AccessEventInput): Promise<string> {
+  const [row] = await db
+    .insert(accessEvents)
+    .values({
+      userId: event.app.userId,
+      appId: event.app.appId,
+      appName: event.app.appName,
+      action: event.action,
+      channel: event.channel,
+      outcome: event.outcome,
+      purposeEncrypted: event.purpose ? encryptField(event.purpose) : null,
+      queryEncrypted: event.query ? encryptField(event.query) : null,
+      categories: event.categories ?? [],
+      memoryIds: event.memoryIds ?? [],
+      withheldCount: event.withheldCount ?? 0,
+      sessionId: event.sessionId ?? null,
+    })
+    .returning({ id: accessEvents.id });
+  return row!.id;
 }
 
 // ── Owner-scoped ──

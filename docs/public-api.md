@@ -59,7 +59,7 @@ Send anything the user told your app, or anything your app observed. The vault s
 | `content`          | string, ≤ 8000                                                                                          | Free text: a note, journal entry, summary or observation. **Exactly one of `content` / `messages` is required.**           |
 | `messages`         | `{ role: "user"\|"assistant"\|"system"\|"tool", content: string ≤ 4000, timestamp?: datetime }[]`, ≤ 50 | A conversation transcript. Facts the user stated are trusted; the assistant's own claims are kept only with low confidence |
 | `contentType`      | `note`\|`conversation`\|`journal`\|`event`\|`observation`\|`document`\|`summary`\|`profile`             | Picks the extraction strategy                                                                                              |
-| `mode`             | `extract` (default) \| `verbatim`                                                                       | Split into atomic facts, or store the text as one memory (still classified; ≤ 2000 chars)                                  |
+| `mode`             | `extract` (default) \| `verbatim`                                                                       | Split into atomic facts, or store `content` as one memory (still classified and redacted; ≤ 2000 chars)                    |
 | `provenance`       | `user_stated`\|`user_confirmed`\|`app_observed`\|`app_inferred`\|`imported`                             | Trust. Inferred facts get capped confidence and are hedged when projected                                                  |
 | `confidence`       | number 0–1                                                                                              | Your certainty about the input                                                                                             |
 | `importance`       | integer 1–5                                                                                             | Ranks the memory higher at read time                                                                                       |
@@ -115,9 +115,13 @@ Send anything the user told your app, or anything your app observed. The vault s
 }
 ```
 
-- `stored` echoes only memories **your app** just wrote.
-- `withheld` gives a category and reason, never content. Here, the sore knee was classified as `health`, which this app can't write.
+- `requestId` is the id of this write's entry in the owner's access log.
+- `stored` echoes only memories **your app** just wrote. With `dryRun`, each `id` is `null` and nothing is stored.
+- `withheld` gives a category and reason, never content. Here, the sore knee was classified as `health`, which this app can't write. `reason` is `no_write_grant` (no grant for that category) or `sensitivity_above_cap` (a grant exists, but the memory's tier is above its cap).
+- `duplicates` is `1` when your app already wrote memories with this `externalId`: nothing is extracted or stored again.
 - With no write grants at all, the request fails with `403 write_denied` **before** your text reaches any AI model.
+- If the AI provider or the index fails, the request fails with `502 processing_failed` and nothing is stored, so it's safe to retry.
+- Memories are stored in English, with relative dates resolved, credentials and card, account or ID numbers redacted, and confidence capped by `provenance` (`app_inferred` at most 0.6, `app_observed` and `imported` at most 0.9).
 
 ## `DELETE /memories`: retract (Phase 07)
 
@@ -129,7 +133,7 @@ Removes memories **your app wrote**, for example after the user deletes somethin
 | `externalIds` | string[], ≤ 100 | Every memory written with these `externalId`s |
 | `sessionId`   | string          | Every memory written in this session          |
 
-At least one field is required. **200** `{ "deleted": 3 }`. Ids that aren't yours count as not found and are silently skipped.
+At least one non-empty field is required; a memory matching any of them is deleted. **200** `{ "deleted": 3 }`. Ids that aren't yours count as not found and are silently skipped.
 
 ## `POST /context`: read (Phase 08)
 

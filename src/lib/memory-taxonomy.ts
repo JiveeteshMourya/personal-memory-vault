@@ -39,6 +39,46 @@ export const MEMORY_VISIBILITIES = ["shared", "app_private"] as const;
 
 export type Visibility = (typeof MEMORY_VISIBILITIES)[number];
 
+/** How a memory came to be known, which caps how much it's trusted. The owner's own are `user_stated`. */
+export const MEMORY_PROVENANCES = [
+  "user_stated",
+  "user_confirmed",
+  "app_observed",
+  "app_inferred",
+  "imported",
+] as const;
+
+export type Provenance = (typeof MEMORY_PROVENANCES)[number];
+
+/** What kind of text an app sent. A hint for extraction, stored (encrypted) with each memory. */
+export const MEMORY_CONTENT_TYPES = [
+  "note",
+  "conversation",
+  "journal",
+  "event",
+  "observation",
+  "document",
+  "summary",
+  "profile",
+] as const;
+
+export type ContentType = (typeof MEMORY_CONTENT_TYPES)[number];
+
+/** Kinds of people, places and things a memory can mention. */
+export const MEMORY_ENTITY_TYPES = [
+  "person",
+  "place",
+  "organization",
+  "product",
+  "condition",
+  "other",
+] as const;
+
+export type EntityType = (typeof MEMORY_ENTITY_TYPES)[number];
+
+/** A person, place or thing a memory mentions. Stored encrypted, like the content. */
+export type MemoryEntity = { name: string; type: EntityType };
+
 export const CATEGORY_LABELS: Record<MemoryCategory, string> = {
   identity: "Identity",
   preferences: "Preferences",
@@ -90,4 +130,12 @@ export const SENSITIVITY_DESCRIPTIONS: Record<Sensitivity, string> = {
   personal: "Could be used to profile you: routines, workouts, meals, sleep, schedule.",
   private: "Could cause emotional or social harm: moods, relationships, family matters.",
   protected: "Could cause concrete harm: health conditions, money, beliefs, exact location.",
+};
+
+export const PROVENANCE_LABELS: Record<Provenance, string> = {
+  user_stated: "Stated",
+  user_confirmed: "Confirmed",
+  app_observed: "Observed",
+  app_inferred: "Inferred",
+  imported: "Imported",
 };

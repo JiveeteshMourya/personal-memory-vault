@@ -85,12 +85,18 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 - [ ] [P07] No per-app quotas (only body-size limits) — storage and AI-cost abuse — per-app daily write quota.
 - [ ] [P07] No retries or fallback provider — an OpenAI outage fails writes with 502 — retry with backoff, plus an optional fallback model.
 - [ ] [P07] No token and cost tracking — surprise bills — log usage per call (without content).
-- [ ] [P07] Pinecone Local is in-memory — vectors vanish on every container restart until `bun run reindex` — a persistent vector store (Pinecone cloud or pgvector), or reindex automatically on startup when the index is empty.
+- [x] [P07] Pinecone Local is in-memory — vectors vanish on every container restart until `bun run reindex` — a persistent vector store (Pinecone cloud or pgvector), or reindex automatically on startup when the index is empty. Resolved in P07: Pinecone Local reached end-of-life (2026-10-07), so the vault uses Pinecone serverless (free Starter plan), which persists.
 - [ ] [P07] Embeddings are derived from sensitive plaintext — embedding-inversion risk if the index leaks — review the threat; consider per-tier indexes or keeping `protected` memories out of the vector index.
 - [ ] [P07] The index can drift from Postgres if a sync call fails — stale or missing results — periodic reconcile job.
 - [ ] [P07] Prompt-injection hardening is prompt-only — app-supplied text could steer extraction or classification — input delimiting, a sensitivity floor for suspicious input, and an output check.
 - [ ] [P07] No relationship graph between memories — weaker synthesis — relationship extraction step.
 - [ ] [P07] `session_id` and `external_id` are stored in plaintext — app-chosen ids could carry personal data — store HMACs instead.
+- [ ] [P07] Duplicate detection checks for an existing `externalId` before extraction — two concurrent requests with the same `externalId` can both store — record the `externalId` up front in a small unique `(app_id, external_id)` table, or take an advisory lock per id.
+- [ ] [P07] An input whose memories were all withheld leaves no row with its `externalId` — re-sending it runs extraction again (and is withheld again) — remember processed `externalId`s separately from memories.
+- [ ] [P07] Redaction of credentials and card, account or ID numbers is prompt-only — a missed number gets stored (encrypted) — a regex backstop for card numbers (Luhn), IBANs and common key formats before insert.
+- [ ] [P07] A failed index removal (owner delete, retract) or a deleted app leaves stale vectors until `bun run reindex` — embeddings of deleted content linger in Pinecone (never served: rows are re-fetched and re-checked) — retry removals in the background, and drop an app's vectors when it's deleted.
+- [ ] [P07] Vectors and their labels are hosted by Pinecone in AWS `us-east-1` — derived data leaves the device, and the free plan picks the region — a self-hosted or in-region vector store for production.
+- [ ] [P07] An owner's create, edit or delete waits for the embedding and index calls — a slow AI provider slows the dashboard — sync in `after()` or a queue once latency matters.
 
 ## P08 — Context API, Access History & Playground
 

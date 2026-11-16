@@ -28,6 +28,16 @@ function write(level: LogLevel, message: string, meta?: LogMeta) {
 }
 
 /**
+ * An error's name and HTTP status, without its message. Log this for third-party (AI, vector index)
+ * errors, whose messages could echo what was sent to them.
+ */
+export function errorSummary(error: unknown): LogMeta {
+  if (!(error instanceof Error)) return { name: typeof error };
+  const status = "status" in error && typeof error.status === "number" ? error.status : undefined;
+  return { name: error.name, status };
+}
+
+/**
  * App-wide logger. Never pass memory content or secrets in the message or meta:
  * log ids, counts and outcomes instead.
  */

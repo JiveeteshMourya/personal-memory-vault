@@ -117,6 +117,7 @@ async function seed(email: string) {
     }))
   );
   console.log(`Seeded ${JANE.length} memories for ${email}.`);
+  console.log("Run `bun run reindex` to make them searchable by connected apps.");
   return 0;
 }
 

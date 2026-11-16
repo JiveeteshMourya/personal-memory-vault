@@ -15,7 +15,7 @@ A connected app asks a natural-language question with rich optional hints, and g
   2. The effective categories are the granted ones ∩ `categories` − `excludeCategories`. `withheldCategories` lists the requested categories that aren't granted, and nothing else.
   3. The sources are the allowed sources ∩ `origin` (`other_apps` drops this app; `this_app` keeps only it).
   4. **Search text:** the `query` (rewritten into a standalone query by one small LLM call when `conversation` is given), plus `keywords` and `entities`. Then `embed`.
-  5. `searchMemoryIds`, filtered by the category caps, sources, visibility and `timeRange`. `topK` comes from `depth` (8/20/40), over-fetched ×2 for reranking.
+  5. `searchMemoryIds(userId, { vector, scope, readerAppId, timeRange, topK })`, with the read scope narrowed to the effective categories and sources from steps 2–3. The index filters by the category caps, sources, visibility (`shared`, or the reader's own), expiry and `timeRange`, and returns `{ id, score }[]`. `topK` comes from `depth` (8/20/40), over-fetched ×2 for reranking.
   6. `getMemoriesByIds`, then **re-check `canRead`** on every row and drop expired memories and those under `minConfidence`.
   7. **Rerank:** similarity, a recency weight (`recency`), importance and confidence. Keep the top `depth`.
   8. With nothing left, return `context: ""` **without any LLM call**.

@@ -86,7 +86,7 @@ The vault owner can store, view, edit, delete and filter personal memories. Memo
     - `deleteMemory(id)` returns `boolean`.
     - Someone else's id behaves exactly like a missing one.
   - **Low-level (not session-checked; the caller must have authorized the access):**
-    - `insertMemory(userId, input, source)` returns `MemoryDTO`. `source` is `{ type: "user" } | { type: "app"; appId: string }` (never a null app id).
+    - `insertMemories(userId, inputs, source)` returns `MemoryDTO[]` (one multi-row insert; Phase 07 made it a batch, it was `insertMemory`). `source` is `{ type: "user" } | { type: "app"; appId: string }` (never a null app id).
     - `getMemoriesByIds(userId, ids)` returns `MemoryDTO[]` **in the order of `ids`**, so a relevance ranking survives. Ids that are missing or belong to someone else are left out.
 - **Schema:** `memories` and `MEMORY_SOURCE_TYPES` from `@/db/schema`.
 

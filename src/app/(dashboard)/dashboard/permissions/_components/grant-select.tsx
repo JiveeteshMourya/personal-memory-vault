@@ -14,22 +14,15 @@ import {
 import { toast } from "@/components/ui/toast";
 import {
   CATEGORY_LABELS,
+  SENSITIVITY_CAP_LABELS,
   SENSITIVITY_DESCRIPTIONS,
   SENSITIVITY_TIERS,
   type Sensitivity,
 } from "@/lib/memory-taxonomy";
 
-// A cap allows its own tier and every tier below it.
-const CAP_LABELS: Record<Sensitivity, string> = {
-  shareable: "Shareable only",
-  personal: "Up to personal",
-  private: "Up to private",
-  protected: "Up to protected",
-};
-
 const items = [
   { value: null, label: "No access" },
-  ...SENSITIVITY_TIERS.map(tier => ({ value: tier, label: CAP_LABELS[tier] })),
+  ...SENSITIVITY_TIERS.map(tier => ({ value: tier, label: SENSITIVITY_CAP_LABELS[tier] })),
 ];
 
 /** One cell of the permissions matrix: no access, or a tier cap. Saves as soon as it changes. */

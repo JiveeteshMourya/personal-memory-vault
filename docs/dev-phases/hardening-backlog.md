@@ -114,6 +114,12 @@ Each phase appends its items under its own heading, and checks items off (`[x]`)
 ## P09 — Consent, Overview & Demo Readiness
 
 - [ ] [P09] No notifications for new consent requests — the owner may never see them — email or push notification.
+- [ ] [P09] No dedupe or rate limit on consent requests — an app can flood the owner's pending list — one pending request per app and operation (merge new categories in), plus a per-app daily cap.
+- [ ] [P09] Pending consent requests never expire — a stale request can be approved weeks later — expire pending requests after e.g. 30 days.
+- [ ] [P09] An approval doesn't record what it actually granted (only `approved`) — narrowed approvals can't be audited later — store the approved categories, cap and sources on the request (or in the grant history from P06).
+- [ ] [P09] An approved request can't be undone as a unit — the owner must find and remove each grant in the matrix — a "revoke this approval" action, built on that record.
+- [ ] [P09] The app isn't told the outcome of its request — it must poll `GET /permissions` — a status endpoint (`GET /consent-requests/:id`) or a webhook.
+- [ ] [P09] The Overview's tier bar has no table view or custom tooltip (counts are in the legend and in each block's accessible name and `title`) — a weaker read for screen-reader and keyboard users than a table — add a visually hidden table, or a toggle to a table view.
 
 ## Sprint cut (2026-11-15)
 

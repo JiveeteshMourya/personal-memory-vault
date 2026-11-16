@@ -5,5 +5,6 @@
 export * from "./access-events";
 export * from "./apps";
 export * from "./auth";
+export * from "./consent";
 export * from "./grants";
 export * from "./memories";

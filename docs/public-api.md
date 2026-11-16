@@ -9,7 +9,7 @@ The rich optional fields exist to make that context better.
 
 Who may see what is decided by the [classification model](classification-model.md) and the owner's permissions. An app is never told more than it's allowed.
 
-> **Status:** this is the target contract for the sprint. Each endpoint notes the phase that delivers it. A phase that changes an endpoint updates this file.
+> **Status:** every endpoint below is live (Phase 09 completed the set). Any change to an endpoint updates this file.
 
 ## Conventions
 
@@ -29,7 +29,7 @@ Who may see what is decided by the [classification model](classification-model.m
 | 502    | `processing_failed` | The AI provider or the vector index failed                |
 | 500    | `internal_error`    | Anything else                                             |
 
-## `GET /permissions`: what this app may do (Phase 06)
+## `GET /permissions`: what this app may do
 
 Returns the calling app's own access, so it can shape its requests.
 
@@ -50,7 +50,7 @@ Returns the calling app's own access, so it can shape its requests.
 - Reading also needs an allowed source: `ownEntries` (the owner's own entries), `thisApp` (your own writes) or another app. Every source starts off.
 - `sources` never names other apps, because which apps the owner uses is private too.
 
-## `POST /memories`: write (Phase 07)
+## `POST /memories`: write
 
 Send anything the user told your app, or anything your app observed. The vault splits it into atomic memories, then classifies each one's category and tier. It **stores only what your write grants allow**.
 
@@ -123,7 +123,7 @@ Send anything the user told your app, or anything your app observed. The vault s
 - If the AI provider or the index fails, the request fails with `502 processing_failed` and nothing is stored, so it's safe to retry.
 - Memories are stored in English, with relative dates resolved, credentials and card, account or ID numbers redacted, and confidence capped by `provenance` (`app_inferred` at most 0.6, `app_observed` and `imported` at most 0.9).
 
-## `DELETE /memories`: retract (Phase 07)
+## `DELETE /memories`: retract
 
 Removes memories **your app wrote**, for example after the user deletes something in your app. No grant is needed.
 
@@ -135,7 +135,7 @@ Removes memories **your app wrote**, for example after the user deletes somethin
 
 At least one non-empty field is required; a memory matching any of them is deleted. **200** `{ "deleted": 3 }`. Ids that aren't yours count as not found and are silently skipped.
 
-## `POST /context`: read (Phase 08)
+## `POST /context`: read
 
 Ask for what you need to know about the user. The vault does the rest:
 
@@ -215,18 +215,33 @@ Put `context` straight into your system prompt.
 - If the AI provider or the index fails, the request fails with `502 processing_failed`; retrying is safe.
 - A memory written a few seconds ago may not be searchable yet: the index is eventually consistent.
 
-## `POST /consent-requests`: ask for access (Phase 09)
+## `POST /consent-requests`: ask for access
 
-Ask the owner for access you don't have. They approve or deny it on their dashboard, and may narrow it.
+Ask the owner for access you don't have. They approve or deny it on their dashboard, and may narrow it. Any app with a valid key may ask, since asking needs no grant.
 
 | Field            | Type                            | Notes                                          |
 | ---------------- | ------------------------------- | ---------------------------------------------- |
 | `operation`      | `read` \| `write`, **required** |                                                |
-| `categories`     | category[], 1–16, **required**  |                                                |
+| `categories`     | category[], 1–16, **required**  | Duplicates are ignored                         |
 | `maxSensitivity` | tier                            | The cap you're asking for (default `personal`) |
 | `reason`         | string, ≤ 300, **required**     | Shown to the owner. Say what the user gains    |
 
-**201** `{ "id": "…", "status": "pending" }`. Check `GET /permissions` later to see what was granted.
+```json
+{
+  "operation": "read",
+  "categories": ["health", "sleep"],
+  "maxSensitivity": "personal",
+  "reason": "To plan workouts around injuries and how you slept."
+}
+```
+
+**201** `{ "id": "…", "status": "pending" }`. Errors: `400 validation_error` and `401 unauthorized`.
+
+- Nothing changes until the owner decides. Check `GET /permissions` later to see what was granted.
+- **Approving can narrow, never widen:** the owner may grant fewer categories or a lower tier than you asked for, never more. Approving never lowers a cap you already hold.
+- **Reads also need a source.** For a `read` request, the owner also picks whose memories you may read (`sources` in `GET /permissions`). If they pick none and you have none yet, you still can't read anything.
+- **Denying changes nothing.** You aren't notified either way.
+- The request and its reason appear in the owner's access log. The reason is stored encrypted.
 
 ## `GET /health`
 

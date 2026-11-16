@@ -44,6 +44,18 @@
   --chart-4: #7c8f92;
   --chart-5: #16282b;
 
+  /* Sensitivity tiers as an ordinal ramp: one slate hue, darker as a leak does more harm. Checked
+     with the dataviz validator (monotone, ΔL ≥ 0.06, light end 2:1 on --card). The ink on each
+     fill is white or near-black, the same two in both modes, picked by APCA. */
+  --tier-shareable: #a3b4b5;
+  --tier-shareable-foreground: #0b1a1a;
+  --tier-personal: #71878a;
+  --tier-personal-foreground: #ffffff;
+  --tier-private: #46595d;
+  --tier-private-foreground: #ffffff;
+  --tier-protected: #243034;
+  --tier-protected-foreground: #ffffff;
+
   --sidebar: #e4e9e4;
   --sidebar-foreground: #16282b;
   --sidebar-primary: #2f6f68;
@@ -87,6 +99,16 @@
   --chart-4: #93a6a5;
   --chart-5: #dce5e2;
 
+  /* In the dark the ramp runs the other way: the more harm, the lighter (and louder) the step. */
+  --tier-shareable: #3e5559;
+  --tier-shareable-foreground: #ffffff;
+  --tier-personal: #62797c;
+  --tier-personal-foreground: #ffffff;
+  --tier-private: #8fa4a5;
+  --tier-private-foreground: #0b1a1a;
+  --tier-protected: #c8d5d3;
+  --tier-protected-foreground: #0b1a1a;
+
   --sidebar: #0b1618;
   --sidebar-foreground: #dce5e2;
   --sidebar-primary: #5fa79d;
@@ -129,6 +151,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-tier-shareable: var(--tier-shareable);
+  --color-tier-shareable-foreground: var(--tier-shareable-foreground);
+  --color-tier-personal: var(--tier-personal);
+  --color-tier-personal-foreground: var(--tier-personal-foreground);
+  --color-tier-private: var(--tier-private);
+  --color-tier-private-foreground: var(--tier-private-foreground);
+  --color-tier-protected: var(--tier-protected);
+  --color-tier-protected-foreground: var(--tier-protected-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

@@ -85,9 +85,9 @@ Per connected app, on `/dashboard/permissions`:
 - **Read** and **write** toggles per category, each with a tier cap
 - **"Reads data from"** toggles: Your entries, each connected app, and this app's own writes
 - **Revoke all**, which removes every grant and source permission at once
-- consent requests from apps, approved or denied (Phase 09)
+- **consent requests** from apps, approved or denied. An approval can narrow a request (fewer categories, a lower tier and, for reads, only the sources the owner picks), never widen it, and never lowers a cap the app already holds. Denying changes nothing.
 
-On `/dashboard/memories` the owner can relabel any memory's category or tier, or delete it. On `/dashboard/access-log` they see every write, retract and context request, including which memories were disclosed.
+On `/dashboard/memories` the owner can relabel any memory's category or tier, or delete it. On `/dashboard/access-log` they see every write, retract, context request and consent request, including which memories were disclosed.
 
 ## What a reading app learns about the vault
 

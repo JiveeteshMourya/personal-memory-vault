@@ -79,8 +79,11 @@ export async function recordAccess(event: AccessEventInput): Promise<string> {
 
 // ── Owner-scoped ──
 
-/** The owner's access log, newest first, `ACCESS_EVENT_PAGE_SIZE` per page (1-based). */
-export async function listAccessEvents(page = 1): Promise<AccessEventPage> {
+/** The owner's access log, newest first, `pageSize` per page (1-based). */
+export async function listAccessEvents(
+  page = 1,
+  pageSize = ACCESS_EVENT_PAGE_SIZE
+): Promise<AccessEventPage> {
   const user = await requireUser();
   const current = Math.max(1, Math.floor(page));
   const rows = await db
@@ -103,18 +106,16 @@ export async function listAccessEvents(page = 1): Promise<AccessEventPage> {
     .where(eq(accessEvents.userId, user.id))
     .orderBy(desc(accessEvents.createdAt), desc(accessEvents.id))
     // One extra row tells whether there is a next page.
-    .limit(ACCESS_EVENT_PAGE_SIZE + 1)
-    .offset((current - 1) * ACCESS_EVENT_PAGE_SIZE);
+    .limit(pageSize + 1)
+    .offset((current - 1) * pageSize);
 
   return {
-    events: rows
-      .slice(0, ACCESS_EVENT_PAGE_SIZE)
-      .map(({ purposeEncrypted, queryEncrypted, ...event }) => ({
-        ...event,
-        purpose: purposeEncrypted ? decryptField(purposeEncrypted) : null,
-        query: queryEncrypted ? decryptField(queryEncrypted) : null,
-      })),
+    events: rows.slice(0, pageSize).map(({ purposeEncrypted, queryEncrypted, ...event }) => ({
+      ...event,
+      purpose: purposeEncrypted ? decryptField(purposeEncrypted) : null,
+      query: queryEncrypted ? decryptField(queryEncrypted) : null,
+    })),
     page: current,
-    hasNextPage: rows.length > ACCESS_EVENT_PAGE_SIZE,
+    hasNextPage: rows.length > pageSize,
   };
 }

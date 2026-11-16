@@ -2,6 +2,7 @@ import { ChevronLeftIcon, ChevronRightIcon, ScrollTextIcon } from "lucide-react"
 import Link from "next/link";
 import { z } from "zod";
 
+import { ACTION_LABELS, OutcomeBadge, plural, summaryOf } from "@/components/access-event-summary";
 import { EmptyState } from "@/components/layout/empty-state";
 import { LocalDateTime } from "@/components/local-date-time";
 import { CategoryBadge, SensitivityBadge, SourceLabel } from "@/components/memory-badges";
@@ -11,19 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { listAccessEvents, type AccessEventDTO } from "@/data/access-events";
 import { listApps } from "@/data/apps";
 import { listMemoriesByIds, type MemoryDTO } from "@/data/memories";
-import type { AccessAction, AccessOutcome } from "@/db/schema";
+import type { AccessAction } from "@/db/schema";
 
 // Unknown values fall back to the first page: the URL is user-editable.
 const searchSchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
 });
-
-const ACTION_LABELS: Record<AccessAction, string> = {
-  write: "Save",
-  retract: "Retract",
-  context: "Context request",
-  consent: "Consent request",
-};
 
 /** What an event's memories are to the owner. */
 const MEMORY_HEADINGS: Record<AccessAction, string> = {
@@ -32,43 +26,6 @@ const MEMORY_HEADINGS: Record<AccessAction, string> = {
   context: "Disclosed to the app",
   consent: "Memories",
 };
-
-const OUTCOME_LABELS: Record<AccessOutcome, string> = {
-  allowed: "Allowed",
-  partial: "Partly withheld",
-  denied: "Denied",
-};
-
-// The more an access was held back, the further it leans into the withheld slate.
-const outcomeStyles: Record<AccessOutcome, string> = {
-  allowed: "border-transparent bg-primary/10 text-primary dark:bg-primary/20",
-  partial: "border-transparent bg-withheld/15 text-foreground dark:bg-withheld/70",
-  denied: "border-transparent bg-withheld text-withheld-foreground",
-};
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
-/** One line that says what happened, for the collapsed row. */
-function summaryOf(event: AccessEventDTO) {
-  if (event.purpose) return event.purpose;
-  if (event.query) return event.query;
-  const memories = plural(event.memoryIds.length, "memory", "memories");
-  switch (event.action) {
-    case "write":
-      if (event.outcome === "denied" && event.withheldCount === 0) {
-        return "Tried to save without a save permission";
-      }
-      return event.withheldCount > 0
-        ? `Saved ${memories}, withheld ${event.withheldCount}`
-        : `Saved ${memories}`;
-    case "retract":
-      return `Removed ${memories}`;
-    case "context":
-      return "Asked for context";
-    case "consent":
-      return "Asked for access";
-  }
-}
 
 function withheldNote(event: AccessEventDTO) {
   if (event.action === "context") {
@@ -104,7 +61,9 @@ function EventDetails({
         )}
         {event.purpose && (
           <>
-            <dt className="text-muted-foreground">Purpose</dt>
+            <dt className="text-muted-foreground">
+              {event.action === "consent" ? "Reason" : "Purpose"}
+            </dt>
             <dd>{event.purpose}</dd>
           </>
         )}
@@ -215,7 +174,8 @@ export async function AccessLogList({
     <div className="flex flex-col gap-4">
       <ul className="divide-y rounded-xl border bg-card">
         {events.map(event => (
-          <li key={event.id}>
+          // The id lets the Overview link straight to a recent entry.
+          <li key={event.id} id={`event-${event.id}`} className="scroll-mt-24">
             <details className="group/event">
               <summary className="flex cursor-pointer list-none items-start gap-3 p-4 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
                 <ChevronRightIcon
@@ -233,9 +193,7 @@ export async function AccessLogList({
                     <span className="text-sm text-muted-foreground">
                       {ACTION_LABELS[event.action]}
                     </span>
-                    <Badge variant="outline" className={outcomeStyles[event.outcome]}>
-                      {OUTCOME_LABELS[event.outcome]}
-                    </Badge>
+                    <OutcomeBadge event={event} />
                     {event.channel === "playground" && <Badge variant="outline">Playground</Badge>}
                     <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                       <LocalDateTime value={event.createdAt} />

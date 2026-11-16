@@ -117,11 +117,27 @@ export const CATEGORY_DESCRIPTIONS: Record<MemoryCategory, string> = {
   other: "Anything that fits nowhere else.",
 };
 
+/** Categories as a phrase: "Health", "Health and Sleep", "Health, Sleep and Mood". */
+export function formatCategoryList(categories: readonly MemoryCategory[]): string {
+  const labels = categories.map(category => CATEGORY_LABELS[category]);
+  return labels.length > 1
+    ? `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`
+    : (labels[0] ?? "");
+}
+
 export const SENSITIVITY_LABELS: Record<Sensitivity, string> = {
   shareable: "Shareable",
   personal: "Personal",
   private: "Private",
   protected: "Protected",
+};
+
+/** A tier used as a grant's cap, which allows that tier and every tier below it. */
+export const SENSITIVITY_CAP_LABELS: Record<Sensitivity, string> = {
+  shareable: "Shareable only",
+  personal: "Up to personal",
+  private: "Up to private",
+  protected: "Up to protected",
 };
 
 /** What leaking a memory of each tier could cost, with examples. */

@@ -23,24 +23,29 @@ bun dev                      # http://localhost:3000
 
 ## Commands
 
-| Command                | What it does                                                       |
-| ---------------------- | ------------------------------------------------------------------ |
-| `bun dev`              | Start the dev server (Turbopack)                                   |
-| `bun run build`        | Production build                                                   |
-| `bun start`            | Serve the production build                                         |
-| `bun run test`         | Run the local tests, each file isolated (`*.test.ts`, git-ignored) |
-| `bun run lint`         | ESLint                                                             |
-| `bun run typecheck`    | Generate Next.js route types, then `tsc --noEmit`                  |
-| `bun run format`       | Format with `bun fmt` (settings in `bunfig.toml`)                  |
-| `bun run format:check` | Check formatting without writing                                   |
-| `bun run db:generate`  | Generate a SQL migration from the schema (`--name <change>`)       |
-| `bun run db:migrate`   | Apply pending migrations (uses `DIRECT_URL`)                       |
-| `bun run db:studio`    | Browse the database in Drizzle Studio                              |
-| `bun run seed:jane`    | Seed ~30 demo memories into an empty account (`[email]`)           |
-| `bun run reindex`      | Rebuild the semantic index from Postgres (after seeding)           |
+| Command                | What it does                                                        |
+| ---------------------- | ------------------------------------------------------------------- |
+| `bun dev`              | Start the dev server (Turbopack)                                    |
+| `bun run build`        | Production build                                                    |
+| `bun start`            | Serve the production build                                          |
+| `bun run test`         | Run the local tests, each file isolated (`*.test.ts`, git-ignored)  |
+| `bun run lint`         | ESLint                                                              |
+| `bun run typecheck`    | Generate Next.js route types, then `tsc --noEmit`                   |
+| `bun run format`       | Format with `bun fmt` (settings in `bunfig.toml`)                   |
+| `bun run format:check` | Check formatting without writing                                    |
+| `bun run db:generate`  | Generate a SQL migration from the schema (`--name <change>`)        |
+| `bun run db:migrate`   | Apply pending migrations (uses `DIRECT_URL`)                        |
+| `bun run db:studio`    | Browse the database in Drizzle Studio                               |
+| `bun run seed:jane`    | Seed ~60 demo memories (`[email] [--reset]`; `--reset` wipes first) |
+| `bun run reindex`      | Rebuild the semantic index from Postgres (after seeding)            |
 
 Health check: `GET /api/v1/health` returns `200 { "status": "ok", "db": "ok" }`, or `503` with
 `"error"` when the database is unreachable.
+
+## Running the demo
+
+[docs/demo-runbook.md](docs/demo-runbook.md) covers the cold start, the reset, the demo flow with
+the `gen-ai-apps-hub` apps, the Playground fallback and troubleshooting.
 
 ## Working on the project
 

@@ -12,7 +12,8 @@
 # - VAULT_NO_GRANTS_API_KEY (optional): an app with no grants at all, for the 403s and the
 #   cross-app retract check. Without it, those checks are skipped.
 # VAULT_URL defaults to http://localhost:3000. The write and context checks call the AI, so they
-# take a few seconds each. Everything written is retracted at the end. Exits non-zero on the first
+# take a few seconds each. Everything written is retracted at the end. The consent check files one
+# real request: deny it on /dashboard/permissions (or reset the seed). Exits non-zero on the first
 # failure.
 set -euo pipefail
 
@@ -234,5 +235,30 @@ refute "DELETE /memories by sessionId" '"deleted":0'
 
 request DELETE /memories "${AUTH[@]}" "${JSON[@]}" --data "{\"sessionId\":\"$RUN\"}"
 expect "DELETE /memories again → nothing left" 200 '"deleted":0'
+
+# ── Consent requests (Phase 09) ──
+ASK_ACCESS='"operation":"read","categories":["finance"],"reason":"Smoke test: deny me."'
+
+request POST /consent-requests "${JSON[@]}" --data "{$ASK_ACCESS}"
+expect "POST /consent-requests without a key → 401" 401 '"code":"unauthorized"'
+
+request POST /consent-requests "${AUTH[@]}" "${JSON[@]}" --data "{$ASK_ACCESS,\"bogus\":true}"
+expect "POST /consent-requests with an unknown field → 400" 400 '"code":"validation_error"'
+
+request POST /consent-requests "${AUTH[@]}" "${JSON[@]}" \
+  --data '{"operation":"read","categories":[],"reason":"Smoke test"}'
+expect "POST /consent-requests with no categories → 400" 400 '"code":"validation_error"'
+
+request POST /consent-requests "${AUTH[@]}" "${JSON[@]}" \
+  --data '{"operation":"read","categories":["money"],"reason":"Smoke test"}'
+expect "POST /consent-requests with an unknown category → 400" 400 '"code":"validation_error"'
+
+request POST /consent-requests "${AUTH[@]}" "${JSON[@]}" \
+  --data '{"operation":"read","categories":["finance"]}'
+expect "POST /consent-requests without a reason → 400" 400 '"code":"validation_error"'
+
+request POST /consent-requests "${AUTH[@]}" "${JSON[@]}" --data "{$ASK_ACCESS}"
+expect "POST /consent-requests → 201, pending (deny it on the dashboard)" 201 '"id":' \
+  '"status":"pending"'
 
 echo "All smoke checks passed."

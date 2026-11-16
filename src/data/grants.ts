@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { requireUser } from "@/data/auth";
 import { appGrants, appSourceAccess, connectedApps, type GrantOperation } from "@/db/schema";
 import { db } from "@/lib/db";
@@ -29,9 +29,10 @@ function toSource(sourceAppId: string | null): AccessSource {
 
 /**
  * True only if every app in `ids` is the owner's. Locks those rows until the transaction ends, so a
- * concurrent delete can't remove an app between this check and the write that references it.
+ * concurrent delete can't remove an app between this check and the write that references it. Take
+ * this lock before locking any row that cascades from those apps: an app delete locks in that order.
  */
-async function lockOwnedApps(tx: Tx, userId: string, ids: string[]): Promise<boolean> {
+export async function lockOwnedApps(tx: Tx, userId: string, ids: string[]): Promise<boolean> {
   const distinct = [...new Set(ids)];
   const owned = await tx
     .select({ id: connectedApps.id })
@@ -58,6 +59,23 @@ export async function getAppPermissions(appId: string): Promise<AppPermissions> 
       .where(and(eq(appSourceAccess.appId, appId), eq(appSourceAccess.userId, user.id))),
   ]);
   return { grants, sources: sources.map(row => toSource(row.sourceAppId)) };
+}
+
+/** How many topics each of the owner's apps may read and save, keyed by app id. */
+export async function getGrantCounts(): Promise<Map<string, Record<GrantOperation, number>>> {
+  const user = await requireUser();
+  const rows = await db
+    .select({ appId: appGrants.appId, operation: appGrants.operation, total: count() })
+    .from(appGrants)
+    .where(eq(appGrants.userId, user.id))
+    .groupBy(appGrants.appId, appGrants.operation);
+  const counts = new Map<string, Record<GrantOperation, number>>();
+  for (const { appId, operation, total } of rows) {
+    const app = counts.get(appId) ?? { read: 0, write: 0 };
+    app[operation] = total;
+    counts.set(appId, app);
+  }
+  return counts;
 }
 
 /** Grants an app one operation on one category, or changes the tier cap of that grant. */

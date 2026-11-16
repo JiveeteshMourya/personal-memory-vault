@@ -43,6 +43,13 @@
       "when": 1794794226767,
       "tag": "0005_ai_ingest",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794800796666,
+      "tag": "0006_consent",
+      "breakpoints": true
     }
   ]
 }

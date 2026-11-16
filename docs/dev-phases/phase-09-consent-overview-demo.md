@@ -1,6 +1,6 @@
 # Phase 09 — Consent, Overview & Demo Readiness
 
-> **Status:** ⬜ Not started · **Depends on:** 06, 07, 08 · **Unlocks:** the 2026-11-17 demo
+> **Status:** ✅ Done · **Depends on:** 06, 07, 08 · **Unlocks:** the 2026-11-17 demo
 
 ## Goal
 
@@ -12,10 +12,10 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
 
 - **Consent:**
   - `consent_requests` table (`src/db/schema/consent.ts`):
-    - columns: `user_id`, `app_id` (cascade), `operation`, `categories` text[], `max_sensitivity`, `reason`, `status` (`pending`\|`approved`\|`denied`), `created_at`, `decided_at`
+    - columns: `user_id`, `app_id` (cascade), `operation`, `categories` text[], `max_sensitivity`, `reason_encrypted` (app-written free text, encrypted like the access log's purpose), `status` (`pending`\|`approved`\|`denied`), `created_at`, `decided_at`
   - **`POST /api/v1/consent-requests`**, per [public-api.md](../public-api.md), audited as `consent`
   - a pending-requests panel on `/dashboard/permissions`
-  - **Approve** opens the request pre-filled. The owner can narrow the categories and the cap, and for reads pick the allowed **sources**. Then it calls `setGrant` and `setSourceAccess`. **Deny** records the decision.
+  - **Approve** opens the request pre-filled. The owner can narrow the categories and the cap, and for reads pick the allowed **sources**. One transaction (`approveConsentRequest`) then writes the grants and sources: it only narrows the request, and never lowers a cap the app already holds. **Deny** records the decision and changes nothing else.
 - **Overview `/dashboard`** (replaces the placeholder):
   - memory counts by category and by tier
   - connected apps
@@ -33,15 +33,43 @@ Apps can **ask** for access they don't have, and the owner approves or narrows t
 ## Contract provided
 
 - `POST /api/v1/consent-requests`, as documented.
-- `bun run seed:jane [email]` + `bun run reindex` give a repeatable demo vault.
+- `bun run seed:jane [email] [--reset]` + `bun run reindex` give a repeatable demo vault.
+- `@/data/consent`: low-level `createConsentRequest`; owner-scoped `listPendingConsentRequests`, `approveConsentRequest`, `denyConsentRequest`.
+- Owner-scoped counts for the Overview: `getMemoryCounts` (`@/data/memories`), `getGrantCounts` (`@/data/grants`). `listAccessEvents(page, pageSize)`.
 
 ## Acceptance
 
-- [ ] An app files a consent request, it appears as pending, approving it grants access, and `GET /api/v1/permissions` reflects that. Denying it changes nothing.
-- [ ] The Overview shows correct counts after seeding.
-- [ ] Following the runbook from a cold start (containers down) gets to a working demo.
-- [ ] Lint, typecheck, format and build pass.
+- [x] An app files a consent request, it appears as pending, approving it grants access, and `GET /api/v1/permissions` reflects that. Denying it changes nothing.
+- [x] The Overview shows correct counts after seeding.
+- [x] Following the runbook from a cold start (containers down) gets to a working demo. Verified on the vault side; the hub steps await the hub build.
+- [x] Lint, typecheck, format and build pass.
 
 ## Outcome & handoff notes
 
-_10 bullets or fewer, filled in at the end._
+Done 2026-11-16.
+
+- **Consent:**
+  - The reason is stored encrypted (`reason_encrypted`).
+  - Approval is one transaction: it can narrow a request, never widen it, and never lowers an existing cap.
+  - Approval locks the apps before the request row (an app delete's order).
+  - The access log hides the outcome badge on consent events, and labels the reason "Reason".
+- **Shared code moved:**
+  - access-event labels and `OutcomeBadge` → `@/components/access-event-summary`
+  - the app monogram → `@/components/app-monogram`
+  - `SENSITIVITY_CAP_LABELS` and `formatCategoryList` → `@/lib/memory-taxonomy`
+  - `lockOwnedApps` is now exported from `@/data/grants`
+- **Overview:** CSS only, following the `dataviz` skill:
+  - topics as ranked bars
+  - tiers as a tall segmented bar on a validated ordinal slate ramp (the `--tier-*` tokens in `globals.css`)
+  - links into Memories, Permissions and the access log (`#event-<id>` anchors)
+- **Seed:** 59 of Jane's own memories over all 16 topics and 4 tiers. `--reset` wipes her memories, apps and access log. It asserts its own coverage, so an edit can't silently drop a topic or tier.
+- **Smoke script:** 37 checks; the new consent checks file one real pending request (deny it, or reset).
+- **Verified** with a throwaway account, signed up over HTTP and deleted afterwards:
+  - smoke 37/37
+  - approve and deny through real Server Action POSTs: widening and repeat decisions refused; narrowed approval shown by `GET /permissions`; deny left it unchanged; a lower-tier approval didn't lower `activity`
+  - Overview counts equal to SQL
+  - reindex; a `protected` diagnosis withheld under a `personal` cap
+  - a clean dev log and next-devtools check
+- **Jane's account wasn't reseeded**, so her three existing apps stay. Run `bun run seed:jane --reset` and `bun run reindex` before the demo ([demo-runbook.md](../demo-runbook.md)).
+- **The hub (`gen-ai-apps-hub`) is still boilerplate.** Its "Request access" button calls `POST /api/v1/consent-requests` as documented. Until it's built, the runbook's Playground and curl fallback covers the demo.
+- **Agent tooling:** the `shadcn` and `supabase-postgres-best-practices` skills and `skills-lock.json` were removed. Only the `next-devtools` MCP remains.

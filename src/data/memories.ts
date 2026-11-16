@@ -1,18 +1,20 @@
 import "server-only";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, or } from "drizzle-orm";
 import { requireUser } from "@/data/auth";
 import { indexMemories, removeFromIndex } from "@/data/memory-index";
 import { memories } from "@/db/schema";
 import { decryptField, encryptField } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { errorSummary, logger } from "@/lib/logger";
-import type {
-  ContentType,
-  MemoryCategory,
-  MemoryEntity,
-  Provenance,
-  Sensitivity,
-  Visibility,
+import {
+  MEMORY_CATEGORIES,
+  SENSITIVITY_TIERS,
+  type ContentType,
+  type MemoryCategory,
+  type MemoryEntity,
+  type Provenance,
+  type Sensitivity,
+  type Visibility,
 } from "@/lib/memory-taxonomy";
 
 /** Who wrote a memory: the owner, or a connected app (`appId` null once that app is deleted). */
@@ -80,6 +82,14 @@ export type MemoryFilters = {
 };
 
 export type MemoryPage = { memories: MemoryDTO[]; page: number; hasNextPage: boolean };
+
+/** How many memories the owner has, by topic, by tier and by who wrote them. */
+export type MemoryCounts = {
+  total: number;
+  byCategory: Record<MemoryCategory, number>;
+  bySensitivity: Record<Sensitivity, number>;
+  bySource: Record<MemorySource["type"], number>;
+};
 
 export const MEMORY_PAGE_SIZE = 20;
 
@@ -167,6 +177,39 @@ export async function listMemories(filters: MemoryFilters = {}): Promise<MemoryP
     page,
     hasNextPage: rows.length > MEMORY_PAGE_SIZE,
   };
+}
+
+/** Counts of the owner's memories. Reads labels only: nothing is decrypted. */
+export async function getMemoryCounts(): Promise<MemoryCounts> {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      category: memories.category,
+      sensitivity: memories.sensitivity,
+      sourceType: memories.sourceType,
+      total: count(),
+    })
+    .from(memories)
+    .where(eq(memories.userId, user.id))
+    .groupBy(memories.category, memories.sensitivity, memories.sourceType);
+
+  const counts: MemoryCounts = {
+    total: 0,
+    byCategory: Object.fromEntries(
+      MEMORY_CATEGORIES.map(c => [c, 0])
+    ) as MemoryCounts["byCategory"],
+    bySensitivity: Object.fromEntries(
+      SENSITIVITY_TIERS.map(t => [t, 0])
+    ) as MemoryCounts["bySensitivity"],
+    bySource: { user: 0, app: 0 },
+  };
+  for (const { category, sensitivity, sourceType, total } of rows) {
+    counts.total += total;
+    counts.byCategory[category] += total;
+    counts.bySensitivity[sensitivity] += total;
+    counts.bySource[sourceType] += total;
+  }
+  return counts;
 }
 
 /** One of the owner's memories, or null if it doesn't exist or isn't theirs. */

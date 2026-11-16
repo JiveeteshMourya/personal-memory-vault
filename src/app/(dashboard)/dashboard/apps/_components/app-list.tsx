@@ -2,19 +2,12 @@ import { BlocksIcon } from "lucide-react";
 
 import { AppRowActions } from "@/app/(dashboard)/dashboard/apps/_components/app-row-actions";
 import { RegisterAppButton } from "@/app/(dashboard)/dashboard/apps/_components/register-app-button";
+import { AppMonogram } from "@/components/app-monogram";
 import { EmptyState } from "@/components/layout/empty-state";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listApps } from "@/data/apps";
-
-function monogram(name: string) {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  return words
-    .slice(0, 2)
-    .map(word => word[0]!.toUpperCase())
-    .join("");
-}
 
 /** The owner's connected apps and their key status. Reads the session, so it renders behind <Suspense>. */
 export async function AppList() {
@@ -35,12 +28,7 @@ export async function AppList() {
     <ul className="divide-y rounded-xl border bg-card">
       {apps.map(app => (
         <li key={app.id} className="flex items-start gap-3 p-4">
-          <span
-            aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-sm font-bold text-primary"
-          >
-            {monogram(app.name)}
-          </span>
+          <AppMonogram name={app.name} />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex flex-col gap-0.5">
               <h2 className="truncate font-medium">{app.name}</h2>

@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { ApiResponse } from "@/server/lib/api-response";
 import { withErrorHandler } from "@/server/middlewares/error-handler.middleware";
 import { checkDatabase } from "@/server/services/health.service";
 
@@ -9,5 +10,9 @@ export const getHealth = withErrorHandler(async () => {
   const db = await checkDatabase();
   const ok = db === "ok";
   // 503 when a dependency is down, so uptime monitors see the outage.
-  return Response.json({ status: ok ? "ok" : "error", db }, { status: ok ? 200 : 503 });
+  return new ApiResponse(
+    ok ? 200 : 503,
+    { status: ok ? "ok" : "error", db },
+    ok ? "Vault is up" : "Database is down"
+  );
 });

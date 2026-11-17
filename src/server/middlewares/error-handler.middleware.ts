@@ -6,32 +6,34 @@ import { logger } from "@/server/lib/logger";
 /** A `/api/v1` controller: takes the request, answers with a `Response`. */
 export type Controller = (request: Request) => Promise<Response>;
 
-function errorBody(status: number, code: string, message: string, details?: unknown) {
-  return Response.json(
-    { error: { code, message, ...(details !== undefined && { details }) } },
-    { status }
-  );
+function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
+
+  if (error instanceof z.ZodError) {
+    const errors = error.issues.map(issue => ({
+      path: issue.path.map(String).join("."),
+      message: issue.message,
+    }));
+    return new ApiError(400, "validation_error", "Invalid request", errors);
+  }
+
+  logger.error("Unhandled API error", { error });
+  return new ApiError(500, "internal_error");
 }
 
 /**
- * Maps anything thrown in a controller to the public `{ error: { code, message, details? } }` body.
- * Next.js control-flow errors (e.g. `connection()` ending a prerender, `notFound()`) are rethrown
- * so Next can handle them.
+ * Maps anything thrown in a controller to the public error body
+ * `{ statusCode, success: false, message, data: null, code, errors }`. Next.js control-flow errors
+ * (e.g. `connection()` ending a prerender, `notFound()`) are rethrown so Next can handle them.
  */
 export function errorResponse(error: unknown): Response {
   unstable_rethrow(error);
 
-  if (error instanceof ApiError) {
-    return errorBody(error.status, error.code, error.message, error.details);
-  }
-
-  if (error instanceof z.ZodError) {
-    // A tree, because request bodies nest (e.g. `messages[3].role`).
-    return errorBody(400, "validation_error", "Invalid request", z.treeifyError(error));
-  }
-
-  logger.error("Unhandled API error", { error });
-  return errorBody(500, "internal_error", "Something went wrong");
+  const { statusCode, code, message, errors } = toApiError(error);
+  return Response.json(
+    { statusCode, success: false, message, data: null, code, errors },
+    { status: statusCode }
+  );
 }
 
 /** Wraps a controller so anything it throws is answered by `errorResponse`. */

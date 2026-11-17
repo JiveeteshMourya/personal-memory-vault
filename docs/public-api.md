@@ -18,16 +18,17 @@ Who may see what is decided by the [classification model](classification-model.m
 - **Bodies:** JSON, with camelCase field names. Validation is strict: an **unknown field is a 400**, so typos surface immediately.
 - **Times:** ISO 8601 datetimes. **Language:** BCP-47 (`en`, `hi-IN`). **Timezone:** IANA (`Asia/Kolkata`).
 - **Categories and tiers:** see [classification-model.md](classification-model.md). `GET /permissions` returns them too.
-- **Errors:** `{ "error": { "code": string, "message": string, "details"?: unknown } }`
+- **Responses:** every body is the envelope `{ "statusCode": number, "success": boolean, "message": string, "data": … }`, where `success` is `statusCode < 400`. The response bodies shown below are the `data`.
+- **Errors:** `{ "statusCode": number, "success": false, "message": string, "data": null, "code": string, "errors": [{ "path": string, "message": string }] }`. Branch on `code`. `errors` is empty except for `validation_error`.
 
-| Status | `code`              | When                                                      |
-| ------ | ------------------- | --------------------------------------------------------- |
-| 400    | `validation_error`  | The body doesn't match the schema (`details` shows where) |
-| 401    | `unauthorized`      | Missing, malformed, unknown or revoked key                |
-| 403    | `write_denied`      | The app holds no write grant at all                       |
-| 403    | `read_denied`       | The app holds no read grant or no allowed source          |
-| 502    | `processing_failed` | The AI provider or the vector index failed                |
-| 500    | `internal_error`    | Anything else                                             |
+| Status | `code`              | When                                                          |
+| ------ | ------------------- | ------------------------------------------------------------- |
+| 400    | `validation_error`  | The body doesn't match the schema (`errors` lists each field) |
+| 401    | `unauthorized`      | Missing, malformed, unknown or revoked key                    |
+| 403    | `write_denied`      | The app holds no write grant at all                           |
+| 403    | `read_denied`       | The app holds no read grant or no allowed source              |
+| 502    | `processing_failed` | The AI provider or the vector index failed                    |
+| 500    | `internal_error`    | Anything else                                                 |
 
 ## `GET /permissions`: what this app may do
 

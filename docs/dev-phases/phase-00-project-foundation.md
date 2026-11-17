@@ -8,7 +8,7 @@ Turn the create-next-app scaffold into the skeleton every later phase builds on.
 
 ## Coupling boundary
 
-- **Owns:** `src/server/lib/env.ts`, `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/lib/api-error.ts`, `src/server/middlewares/error-handler.middleware.ts`, `GET /api/v1/health` (`src/server/controllers/health.controller.ts`), the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
+- **Owns:** `src/server/lib/env.ts`, `src/instrumentation.ts`, `src/server/lib/logger.ts`, `src/server/lib/api-error.ts`, `src/server/lib/api-response.ts`, `src/server/middlewares/error-handler.middleware.ts`, `GET /api/v1/health` (`src/server/controllers/health.controller.ts`), the test setup (`test/setup.ts` + `bunfig.toml [test]`), `.env.example`, the package scripts.
 - **Must not:** add a database, auth, or any visual design. Phase 01 owns the look; leave a plain placeholder home page.
 - Create folders only when a file goes in them. The layout follows the **Conventions** table in [phase-index.md](phase-index.md).
 
@@ -35,9 +35,10 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
   - Server-only.
 - `src/instrumentation.ts`: `register()` imports `env`, so validation runs when the server starts, not on first use.
 - `src/server/lib/logger.ts`: `logger.info/warn/error(message, meta?)`. **Never log memory content or secrets.**
-- `src/server/lib/api-error.ts`: the `ApiError` class `(status, code, message, details?)` that services and middlewares throw.
+- `src/server/lib/api-response.ts`: the `ApiResponse` class `(statusCode, data, message = "Success")`, a `Response` whose body is the envelope `{ statusCode, success: statusCode < 400, message, data }`. Controllers return it.
+- `src/server/lib/api-error.ts`: the `ApiError` class `(statusCode, code, message = "Something went wrong", errors = [])` that services and middlewares throw. `errors` holds `{ path, message }` field errors.
 - `src/server/middlewares/error-handler.middleware.ts`:
-  - `errorResponse(error: unknown): Response` maps `ApiError`, validation errors and unknown errors to `Response.json({ error: { code, message, details? } }, { status })`.
+  - `errorResponse(error: unknown): Response` maps `ApiError`, validation errors (one `errors` entry per zod issue) and unknown errors to `{ statusCode, success: false, message, data: null, code, errors }`.
   - `withErrorHandler(controller)` wraps a controller so anything it throws goes through `errorResponse`.
   - Unknown errors are logged and returned as a generic 500.
   - Next.js control-flow errors (`connection()` during prerender, `notFound()`, `redirect()`) are rethrown, never mapped.
@@ -56,11 +57,11 @@ None expected. If zod is chosen, check whether zod publishes an official skill.
 
 - `import { env } from "@/server/lib/env"` gives typed, validated env (server-only). It is validated once at server start. **A new env var goes into the schema and into `.env.example`.**
 - `import { logger } from "@/server/lib/logger"`: `logger.info/warn/error(message, meta?)`. Pass ids, counts and outcomes, never memory content or secrets. `Error` values in `meta` are logged as `{ name, message, code?, stack }` only. `code` is kept only when it's a string: a system code or Postgres SQLSTATE, never data.
-- `import { ApiError } from "@/server/lib/api-error"` and `import { withErrorHandler } from "@/server/middlewares/error-handler.middleware"`. Every controller is `export const getX = withErrorHandler(async request => …)`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
-  - `new ApiError(status, code, message, details?)`. Codes are snake_case strings (`unauthorized`, `forbidden`, `not_found`, …).
+- `import { ApiError } from "@/server/lib/api-error"`, `import { ApiResponse } from "@/server/lib/api-response"` and `import { withErrorHandler } from "@/server/middlewares/error-handler.middleware"`. Every controller is `export const getX = withErrorHandler(async request => …)`. That is safe around Next.js APIs that throw for control flow, because `errorResponse` rethrows them.
+  - `new ApiResponse(statusCode, data, message?)` to answer; `new ApiError(statusCode, code, message, errors?)` to fail. Codes are snake_case strings (`unauthorized`, `forbidden`, `not_found`, …).
   - A thrown `ZodError` becomes `400 validation_error` with `details = z.treeifyError(error)`, a tree because request bodies nest. Controllers can `schema.parse(body)` and let it throw.
   - Anything else becomes a logged `500 internal_error` with the generic message `"Something went wrong"`.
-- The error body shape `{ error: { code: string, message: string, details?: unknown } }`. `details` is omitted when absent.
+- The response envelope `{ statusCode, success, message, data }`, and the error body `{ statusCode, success: false, message, data: null, code, errors }`. `errors` is `[]` when there are none.
 - `GET /api/v1/health` answers at request time. With Phase 02's database check it returns `200 { status: "ok", db: "ok" }`, or `503` when the database is unreachable.
 - `bun test` picks up `**/*.test.ts`. Test files are git-ignored: they stay local and are never committed. The tracked `test/setup.ts` preload stubs `server-only`, so server modules (services, repositories, `env`) can be imported in tests.
 

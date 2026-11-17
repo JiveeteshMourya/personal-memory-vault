@@ -1,3 +1,4 @@
+import { ApiResponse } from "@/server/lib/api-response";
 import { withErrorHandler } from "@/server/middlewares/error-handler.middleware";
 import { requireApp } from "@/server/middlewares/require-app.middleware";
 import { getAccessScope } from "@/server/services/grant.service";
@@ -33,7 +34,7 @@ export const getPermissions = withErrorHandler(async request => {
   ]);
   const otherApps = read.sources.appIds.filter(id => id !== app.appId);
 
-  return Response.json({
+  return new ApiResponse(200, {
     app: { id: app.appId, name: app.appName },
     write: write.categories,
     read: read.categories,

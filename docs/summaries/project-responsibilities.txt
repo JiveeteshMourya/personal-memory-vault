@@ -1,0 +1,437 @@
+================================================================================
+          PERSONAL MEMORY VAULT — KAUN KYA KIYA IS PROJECT MEIN
+          (Data sabka hai, access kisi ka nahi. Classic vault.)
+================================================================================
+
+PROJECT KA SCENE
+-----------------
+Basically ek "memory locker" hai AI apps ke liye. Har AI app (fitness coach,
+mood journal, meal planner) user ke baare mein thoda-thoda jaanta hai, par
+sab alag-alag. Vault beech mein baithta hai: apps yahan likhte hain, yahan se
+poochte hain, aur har app ko sirf utna milta hai jitna owner ne allow kiya.
+Jawab max 100 characters ka. Gossip ka koi scope nahi.
+
+Example: Jane fitness app ko bolti hai "Did a 5k this morning, knee felt a
+bit sore after." Vault isse do memories banata hai: run (activity) aur knee
+(health). Fitness app ke paas health likhne ki permission nahi? Toh run save,
+knee withheld. App ko bas itna pata chalta hai ki "ek health wali cheez
+ruki". Kya ruki, woh nahi.
+
+Tech Stack : Next.js 16, React 19, TypeScript, Bun, PostgreSQL 17 (Drizzle),
+             Qdrant, OpenAI (gpt-6-luna + text-embedding-3-small),
+             Better Auth, zod, Tailwind + shadcn/ui
+Architecture: models -> repository -> services -> controllers + middlewares
+             (fancy naam: layered architecture; asli matlab: har cheez ki
+             apni file, aur har file ka apna ego)
+
+================================================================================
+TEAM KA BREAKDOWN — KAUN KAHAN THA
+================================================================================
+
+--------------------------------------------------------------------------------
+1. JIVEETESH  |  "Idea bhi mera, architecture bhi mera" energy  |  Tech Lead
+--------------------------------------------------------------------------------
+ROLE: Project Architect, GenAI/RAG Engineer, Context Projection aur Policy
+      Engine ka owner. Basically vault ka dimaag.
+
+KYA KIYA:
+  - Problem dhoondhi (har AI app user ka sirf ek tukda
+    jaanta hai), solution socha (beech mein ek vault), concept likha, aur
+    team mein kaam baanta. Main character energy, but with documentation.
+  - Saare key engineering decisions:
+      * AI kabhi authorise nahi karega. AI padhta, samajhta, likhta hai;
+        "kaun kya dekhega" plain code decide karta hai. Non-negotiable.
+      * Platform-agnostic API: "workout endpoint" jaisa koi app-specific
+        raasta nahi. Free text bhejo, normal sawaal poocho. Koi bhi GenAI
+        app jud sakta hai, vault badle bina.
+      * Vectors hosted service se local Qdrant (Docker) pe shift. Data owner
+        ki machine pe hi rahega. Period.
+      * 16 categories + 4 harm-based sensitivity tiers ka taxonomy.
+      * 15 Nov 2026: plan phase 17 tak tha, demo 17 Nov ko. Bacha kaam 4
+        phases (06-09) mein samet diya. Calendar ne challenge kiya, lead ne
+        accept kiya.
+  - GenAI pipeline (src/server/lib/ai.ts):
+      * extractMemories() — free text ko chhoti English memories mein todna,
+        aur "this morning" ko asli date banana. Structured Outputs, toh AI
+        form bharta hai, essay nahi. "Vibes" naam ki category exist nahi
+        karti, sorry.
+      * Passwords, API keys, card numbers redact. Kabhi save nahi hote.
+      * App ka text AI ko data ki tarah jaata hai, hukum ki tarah nahi.
+        "Ignore previous instructions" likha? Cute. Ignored.
+      * Har request `store: false`. OpenAI padhe, yaad na rakhe.
+      * rewriteQuery() — "aur dinner?" jaisa adhoora sawaal poora banta hai.
+  - Semantic index + similarity search (RAG ka "R"):
+      * embed() — har memory 1536 numbers ki list. Same matlab = paas paas.
+        "Neend" dhoondo toh "raat bhar jaagi" mil jaata hai, bina ek common
+        word ke.
+      * indexMemories() / searchMemoryIds() — Qdrant mein sirf labels,
+        content kabhi nahi. Permission filter search ke ANDAR lagta hai,
+        toh jo allowed nahi woh result mein aata hi nahi.
+      * Qdrant mein khaali filter = "sab match". Toh scope khaali hai toh
+        search hi cancel. Default deny, no exceptions.
+      * 0.2 similarity cutoff, naap ke rakha: unrelated sawaal max 0.14,
+        relevant 0.26-0.53. Vibes se nahi, data se.
+  - Context projection (project ka main event, requestContext()):
+      * App sawaal poochta hai, vault max 100 characters ka jawab deta hai,
+        app ke purpose ke hisaab se. Tweet se chhota, kaam ka poora.
+      * Flow: scope narrow -> embed -> filtered search -> har row re-check
+        -> rerank (similarity + recency + importance + confidence, top
+        8/20/40) -> projectContext() -> capChars() poore sentence ya shabd
+        pe kaatta hai.
+      * withheldCategories mein sirf woh jo app ne khud maangi. Demo mein
+        fitness app ne finance bhi maanga. Mila "withheld". Salary ka "S"
+        bhi nahi. Too bad bestie.
+      * Access log mein exactly wahi memories jo jawab mein gayi.
+  - Policy engine (access-policy.service.ts + grant.service.ts):
+      * evaluateAccess(), canRead(), canWrite(), getAccessScope(). Pure
+        functions: na DB, na AI. Same input, same output. Boring? Haan.
+        Security mein boring = W.
+      * Read ke 4 checks: category + tier cap, allowed source, shared ya
+        apni likhi, expired nahi. Ek bhi fail toh "nahi".
+  - Write pipeline (ingestMemories(), finalize()): AI tier propose karta hai,
+    vault decide karta hai. Sensitivity floor sirf upar le jaata hai, app ka
+    andaaza max 0.6 confidence. Delulu is not the solulu here.
+  - Qdrant fail hua toh DB insert bhi undo. "Stored" ka matlab hamesha
+    "searchable". Adhoora kaam is vault mein allowed nahi.
+  - runPlaygroundAction() (Playground ka engine) aur `bun run reindex`.
+  - Phase index, har phase ka doc, Decisions Log, Pivot Log, public API doc,
+    classification model doc. Yaani project ka poora manual.
+
+  Routes jo banaye:
+      POST   /api/v1/memories  — "Ye suno, user ne ye bataya"
+      DELETE /api/v1/memories  — "Jo maine likha tha, hata do"
+      POST   /api/v1/context   — "User ke baare mein 100 chars mein batao"
+
+KEY FILES:
+  src/server/lib/ai.ts | src/server/lib/qdrant.ts
+  src/server/repository/memory-index.repository.ts
+  src/server/services/ingest.service.ts | context.service.ts
+  src/server/services/access-policy.service.ts (+ test) | grant.service.ts
+  src/server/controllers/memory.controller.ts | context.controller.ts
+  src/server/validators/memory.validator.ts | context.validator.ts
+  src/shared/constants/memory-taxonomy.ts (+ test) | context-options.ts
+  src/shared/types/context.types.ts
+  src/client/features/playground/actions.ts
+  src/app/api/v1/memories/route.ts | src/app/api/v1/context/route.ts
+  scripts/reindex.ts
+  docs/dev-phases/* | docs/main-project-objective.md | docs/public-api.md
+  docs/classification-model.md | docs/reference-projects-for-familiar-code.md
+  AGENTS.md | .mcp.json | .claude/settings.json
+
+--------------------------------------------------------------------------------
+2. SULABH  |  "Schema pehle, baaki sab baad mein" energy  |  Database Modeller
+--------------------------------------------------------------------------------
+ROLE: Database Architect, SQL aur poora project foundation.
+
+KYA KIYA:
+  - Poora database model design kiya: users, connected_apps, app_api_keys,
+    app_grants, app_source_access, memories, access_events,
+    consent_requests. Har table pe user_id, toh ek owner ka data doosre se
+    kabhi nahi milta.
+  - Rules seedha database mein likhe (check constraints):
+      * category sirf 16 mein se, confidence 0-1, importance 1-5.
+        "confidence: 1.4" daala? Postgres ne mana kar diya. Respect.
+      * memories_source_check — owner ki memory pe kisi app ka naam nahi.
+      * Ek app + ek operation + ek category = ek hi grant (unique).
+      * "Your entries" = null source, UNIQUE NULLS NOT DISTINCT ke saath.
+      * Ek app ki sirf ek active key (partial unique index).
+      * Account delete = cascade, sab saaf. App delete = ON DELETE SET NULL:
+        memories owner ke paas rehti hain, par kabhi share nahi hoti.
+  - drizzle-kit se SQL migration (drizzle/0000_init.sql). Table badlo,
+    migration khud ban jaati hai. Manual SQL ka trauma: zero.
+  - Saari repositories likhi: memory, app, grant, consent, access-event,
+    health. Repository ka rule: query chalao, business logic mein mat ghuso.
+    Apni lane mein raho.
+  - Foundation: Bun + Next.js 16 + TS + ESLint + test setup. env.ts startup
+    pe check karta hai; koi secret missing? Process exit. No env, no vault.
+  - Logger: IDs, counts, timings. Memory content kabhi nahi. Logs gossip
+    nahi karte.
+  - docker-compose.yml: ek command, PostgreSQL 17 + Qdrant up, dono sirf
+    127.0.0.1 pe. Bahar wale ke liye darwaza hi nahi hai.
+  - Owner ka memory store (memory.service.ts): dashboard se memory likho,
+    badlo, relabel karo, delete karo. Save se pehle encrypt, padhne pe
+    decrypt.
+  - seed-jane.ts: 59 memories, saari 16 categories, chaaron tiers. Demo ke
+    din khaali dashboard dikhane ki sharam se bachaya. Real MVP move.
+
+  Route:
+      GET /api/v1/health  — "Zinda hai? Haan. Database bhi? Haan."
+
+KEY FILES:
+  src/server/models/memory.model.ts | auth.model.ts | app.model.ts
+  src/server/models/grant.model.ts | consent.model.ts | access-event.model.ts
+  src/server/models/index.ts | sql-list.ts
+  drizzle/0000_init.sql | drizzle/meta/* | drizzle.config.ts
+  docker-compose.yml
+  src/server/lib/db.ts | env.ts (+ test) | logger.ts
+  src/server/repository/memory.repository.ts (+ test)
+  src/server/repository/app.repository.ts (+ test) | grant.repository.ts
+  src/server/repository/consent.repository.ts | access-event.repository.ts
+  src/server/repository/health.repository.ts
+  src/server/services/memory.service.ts (+ test) | health.service.ts (+ test)
+  src/server/controllers/health.controller.ts (+ test)
+  src/shared/types/memory.types.ts | user.types.ts
+  src/app/api/v1/health/route.ts | src/instrumentation.ts
+  scripts/seed-jane.ts
+  .env.example | package.json | bun.lock | bunfig.toml | tsconfig.json
+  eslint.config.mjs | next.config.ts | test/setup.ts
+
+--------------------------------------------------------------------------------
+3. GAURAV  |  "Key dikhao, tabhi andar aao" energy  |  Security & Gateway Dev
+--------------------------------------------------------------------------------
+ROLE: Vault ka Bouncer. Auth, encryption, API gateway aur consent, sab yahin
+      se.
+
+KYA KIYA:
+  - Owner login: Better Auth (email + password), sessions database mein.
+    requireUser() har dashboard action se pehle — sirf cookie nahi, asli
+    session check. proxy.ts: bina login /dashboard? Seedha sign-in page.
+  - App API keys (api-keys.ts):
+      * generateApiKey() — "pmv_" + 43 random characters (256 bits).
+      * Database mein sirf SHA-256 hash. DB leak ho jaaye, tab bhi keys nahi
+        milti. Key sirf ek baar dikhti hai; nayi banao, purani turant band.
+      * "bcrypt kyun nahi?" Woh "jane123" jaise passwords ke liye hai.
+        256-bit key guess karte karte universe khatam ho jaayega.
+  - requireApp() — Bearer key se app ki identity. Sirf identity. Key se pata
+    chalta hai tum KAUN ho; kya kar sakte ho, woh grants batayenge.
+  - AES-256-GCM encryption (crypto.ts): encryptField() / decryptField().
+    Har baar naya random IV, toh same memory do baar encrypt karo, do alag
+    output. Kisi ne ciphertext chheda? Decrypt fail. Format: v1:iv:tag:data.
+  - validateBody() — strict zod. Anjaan field bheja? 400. "Bas extra info de
+    raha tha" valid excuse nahi hai.
+  - withErrorHandler() + ApiError + response envelope — har error ek hi
+    format mein: 400, 401, 403 write_denied / read_denied, 502, 500.
+    Rejection bhi professionally.
+  - Consent requests (consent.service.ts): app permission maange, owner
+    approve / narrow / deny kare. Approval sirf utna ya usse kam, kabhi
+    zyada nahi, aur pehle se mila cap kabhi neeche nahi girta. Deny hua toh
+    app ko notification bhi nahi. Left on read.
+  - recordAccess() — har write, retract, context aur consent ka access
+    event. Receipts sabke hain.
+  - GET /permissions — app ko uske apne grants. Doosre apps ke naam kabhi
+    nahi, sirf ginti. Kaunse apps use karte ho, woh bhi private hai.
+  - smoke-api.sh: 37 automated API checks, 37 pass. Screenshot frame karwa
+    lo. Demo runbook bhi isi desk se.
+
+  Routes jo banaye:
+      GET  /api/v1/permissions       — "Mujhe kya kya allowed hai?"
+      POST /api/v1/consent-requests  — "Please, ye access chahiye"
+      *    /api/auth/[...all]        — "Owner hoon, andar aane do"
+
+KEY FILES:
+  src/server/lib/crypto.ts (+ test) | api-keys.ts (+ test)
+  src/server/lib/auth.ts | auth-cookie.ts | api-error.ts | api-response.ts
+  src/server/middlewares/require-app.middleware.ts (+ test)
+  src/server/middlewares/require-user.middleware.ts (+ test)
+  src/server/middlewares/validate-body.middleware.ts
+  src/server/middlewares/error-handler.middleware.ts (+ test)
+  src/server/services/consent.service.ts | access-event.service.ts
+  src/server/services/app.service.ts (+ test) | auth.service.ts (+ test)
+  src/server/controllers/permission.controller.ts
+  src/server/controllers/consent-request.controller.ts
+  src/server/validators/consent-request.validator.ts
+  src/shared/constants/permissions.ts | src/shared/validators/api-fields.ts
+  src/shared/types/app.types.ts | grant.types.ts | consent.types.ts
+  src/shared/types/access-event.types.ts
+  src/proxy.ts (+ test)
+  src/app/api/auth/[...all]/route.ts
+  src/app/api/v1/permissions/route.ts | consent-requests/route.ts
+  scripts/smoke-api.sh | docs/demo-runbook.md
+
+--------------------------------------------------------------------------------
+4. SHUBHANGI  |  "Pehli impression hi last impression" energy  |  UI/UX Dev
+--------------------------------------------------------------------------------
+ROLE: Design System + App Shell + Landing + Auth screens + Overview. Jo bhi
+      screen pe sabse pehle dikhta hai, yahin se aaya.
+
+KYA KIYA:
+  - Design system set kiya: shadcn/ui on Base UI, 19 primitives (button,
+    dialog, select, switch, table, toast...). Har page pe same look. Random
+    button styles? Not on this watch.
+  - Colour tokens + light/dark theme. Ek chhota inline script page paint
+    hone se pehle saved theme laga deta hai. Dark mode users ko flashbang
+    nahi milta.
+  - Fonts: Atkinson Hyperlegible Next, aur API keys ke liye Mono version,
+    jisme 0 aur O alag dikhte hain. Key copy karte waqt trust issues zero.
+  - App shell: sidebar, mobile nav, page header, user menu, empty states.
+    Phone pe bhi poora kaam karta hai. Responsive, no cap.
+  - Landing page (how it works, vault lens) — vault kya karta hai, 30
+    second mein samjha diya.
+  - Sign up / sign in forms + signUp(), signIn(), signOut() Server Actions.
+    Pehle se logged in ho? Seedha dashboard.
+  - Overview dashboard: topic-wise memories, tiers ka split, har app ka
+    scope, pending requests, recent activity. Charts plain CSS bars se.
+    Chaar bars ke liye chart library? Bundle size ne thank you bola.
+
+  Pages jo banaye:
+      /                   — "Ye vault hai kya cheez?"
+      /sign-up, /sign-in  — "Account banao, andar aao"
+      /dashboard          — "Sab theek chal raha hai na?"
+
+KEY FILES:
+  src/client/components/ui/* (alert-dialog, badge, button, card, dialog,
+    dropdown-menu, empty, field, input, label, select, separator, sheet,
+    skeleton, switch, table, tabs, textarea, toast)
+  src/client/components/layout/* (app-shell, empty-state, mobile-nav,
+    nav-items, nav-list, page-header, sidebar-nav, sign-out-item, user-menu)
+  src/client/components/logo.tsx | theme-sync.tsx | theme-toggle.tsx
+  src/client/components/local-date-time.tsx | app-monogram.tsx
+  src/client/lib/theme.ts | utils.ts
+  src/client/features/home/home-content.tsx | how-it-works.tsx | vault-lens.tsx
+  src/client/features/auth/actions.ts (+ test) | redirect-if-signed-in.tsx
+  src/client/features/auth/sign-in-form.tsx | sign-in-content.tsx
+  src/client/features/auth/sign-up-form.tsx | sign-up-content.tsx
+  src/client/features/overview/overview.tsx | overview-content.tsx
+  src/app/layout.tsx | page.tsx | globals.css | icon.svg
+  src/app/(auth)/layout.tsx | sign-in/page.tsx | sign-up/page.tsx
+  src/app/(dashboard)/layout.tsx | dashboard/page.tsx
+  components.json
+
+--------------------------------------------------------------------------------
+5. KAVITA  |  "Sab kuch ek list mein dikhna chahiye" energy  |  Frontend Dev
+--------------------------------------------------------------------------------
+ROLE: Memories page + Connected Apps page. Owner ka daily-use wala hissa.
+
+KYA KIYA:
+  - Memories page: saari memories decrypt hoke list mein, badges ke saath:
+    category, sensitivity, source ("You" ya "App"), time, tags, expiry.
+  - Filters (category, sensitivity, source) aur pagination. 59 memories ek
+    hi scroll mein? Thumb ki bhi izzat hai.
+  - Create / edit / relabel / delete: createMemoryAction(),
+    updateMemoryAction(), deleteMemoryAction(). AI ne "I love paneer" ko
+    "protected" bana diya? Relabel karo. Paneer ki pasand itna bada raaz
+    nahi hai.
+  - Apps page: naya app register karo (registerAppAction), aur API key SIRF
+    EK BAAR dikhti hai. Copy kar lo, warna nayi banao. Screenshot le lo,
+    bas group chat mein mat bhejna.
+  - Key replace (createApiKeyAction, revokeApiKeyAction) aur app delete
+    (deleteAppAction), confirm dialog ke saath. "Galti se delete ho gaya"
+    wali story yahan nahi banegi.
+  - Page pe rule bhi likha: key batati hai app KAUN hai; kya padhega ya
+    save karega, woh owner ka decision hai.
+
+  Pages jo banaye:
+      /dashboard/memories  — "Mere baare mein kya kya pata hai?"
+      /dashboard/apps      — "Kaun kaun connected hai?"
+
+KEY FILES:
+  src/client/features/memories/actions.ts (+ test) | memories-content.tsx
+  src/client/features/memories/memory-list.tsx | memory-filters.tsx
+  src/client/features/memories/memory-form.tsx | memory-row-actions.tsx
+  src/client/features/memories/new-memory-button.tsx
+  src/client/components/memory-badges.tsx
+  src/client/features/apps/actions.ts (+ test) | apps-content.tsx
+  src/client/features/apps/app-list.tsx | app-row-actions.tsx
+  src/client/features/apps/key-reveal.tsx | register-app-button.tsx
+  src/app/(dashboard)/dashboard/memories/page.tsx | apps/page.tsx
+
+--------------------------------------------------------------------------------
+6. MEGHNA  |  "Control room mera hai" energy  |  Privacy Controls Frontend Dev
+--------------------------------------------------------------------------------
+ROLE: Permissions + Consent review + Playground UI + Access log. Owner ke
+      saare privacy controls ek jagah.
+
+KYA KIYA:
+  - Permissions page: app picker, aur har app ke liye 16 topics ka grant
+    matrix. Har topic pe alag Read aur Save cap: "No access", "Shareable
+    only", "Up to personal"... (setGrantAction). 32 dropdowns per app,
+    default sab "No access". Barabari.
+  - "Reads data from" switches (setSourceAccessAction): owner ki entries,
+    har doosra app, aur app ki apni likhi memories. Sab default band.
+  - Revoke all (revokeAllAction): ek click, us app ka saara access khatam.
+    Block + report energy.
+  - Consent requests ka review: app ne kya maanga, kis tier tak, kyun.
+    Deny ya Review. Review mein sirf kam kar sakte ho: fewer topics, lower
+    tier, chune hue sources. Badhane ka button exist hi nahi karta, toh
+    galti se dabega bhi nahi. (approveConsentAction, denyConsentAction)
+  - Playground UI: owner kisi bhi app ka role play karke sawaal pooche aur
+    dekhe ki us app ko kya jawab milega. Jawab ke peeche ki memories sirf
+    owner ko dikhti hain. Engine Jiveetesh ka, cockpit Meghna ka.
+  - Access log: har save, retract, context aur consent request: app,
+    outcome (Allowed / Partly withheld / Denied), purpose, topics. Expand
+    karo toh exactly kaunsi memories bahar gayi. Receipts hi receipts.
+  - access-event-summary component, jo Overview pe bhi reuse hua.
+
+  Pages jo banaye:
+      /dashboard/permissions  — "Kaun kya dekhega, yahin decide hota hai"
+      /dashboard/playground   — "Test karke dekho, app ko kya milega"
+      /dashboard/access-log   — "Kisne kya liya, sab likha hai"
+
+KEY FILES:
+  src/client/features/permissions/actions.ts | permissions-content.tsx
+  src/client/features/permissions/permissions-panel.tsx | app-picker.tsx
+  src/client/features/permissions/grant-select.tsx | source-switches.tsx
+  src/client/features/permissions/revoke-all-button.tsx
+  src/client/features/permissions/consent-requests.tsx
+  src/client/features/permissions/consent-request-actions.tsx
+  src/client/features/playground/playground-content.tsx | playground-form.tsx
+  src/client/features/playground/playground-panel.tsx
+  src/client/features/access-log/access-log-content.tsx | access-log-list.tsx
+  src/client/components/access-event-summary.tsx
+  src/app/(dashboard)/dashboard/permissions/page.tsx
+  src/app/(dashboard)/dashboard/playground/page.tsx | access-log/page.tsx
+
+================================================================================
+COLLABORATION — YAANI MILA KE KAAM
+================================================================================
+
+  - Jiveetesh ne sab ka code review kiya aur layered structure mein merge
+    kiya. Har phase ke end pe phase doc aur Decisions Log update. Tech lead
+    ka kaam: architecture, code review, aur "ye library kyun chahiye?"
+    wala sawaal.
+  - Permissions: rules Jiveetesh ke (policy engine + grant.service), tables
+    aur queries Sulabh ki (grant model + repository), screen Meghna ki.
+  - Consent: service Gaurav ki, repository Sulabh ki, review UI Meghna ka.
+  - Memories: store Sulabh ka, encryption Gaurav ki, indexing Jiveetesh ki,
+    page Kavita ka. Ek memory, chaar logon ka haath.
+  - Apps + API keys: service aur keys Gaurav ki, repository Sulabh ki, page
+    Kavita ka.
+  - Access log: recording Gaurav ki, storage Sulabh ki, log page Meghna ka,
+    Overview wali summary Shubhangi ki.
+  - Playground: engine Jiveetesh ka, UI Meghna ka. Same pipeline jo
+    POST /api/v1/context chalata hai.
+
+  Ek baat yaad rakhna: har feature 3-4 logon ke haath se guzra hai. Git blame
+  karoge toh poori team ka naam aayega. Team game tha, team game hai.
+
+================================================================================
+ENDPOINT SUMMARY — KAUN SA ROUTE KISNE BANAYA
+================================================================================
+
+  Public API (src/app/api/v1/*)                 Connected apps ke liye
+    GET    /api/v1/health                       — Sulabh
+    GET    /api/v1/permissions                  — Gaurav
+    POST   /api/v1/memories                     — Jiveetesh
+    DELETE /api/v1/memories                     — Jiveetesh
+    POST   /api/v1/context                      — Jiveetesh
+    POST   /api/v1/consent-requests             — Gaurav
+
+  Auth (src/app/api/auth/[...all])              Gaurav ka zone
+    *      /api/auth/*                          — Better Auth
+
+  Dashboard Pages (src/app)                     Owner ke liye
+    /                                           — Shubhangi
+    /sign-up, /sign-in                          — Shubhangi
+    /dashboard                                  — Shubhangi
+    /dashboard/memories                         — Kavita
+    /dashboard/apps                             — Kavita
+    /dashboard/permissions                      — Meghna
+    /dashboard/playground                       — Meghna (UI) + Jiveetesh
+    /dashboard/access-log                       — Meghna
+
+  Server Actions                                Dashboard ke peeche
+    signUp, signIn, signOut                     — Shubhangi
+    createMemoryAction, updateMemoryAction,
+    deleteMemoryAction                          — Kavita
+    registerAppAction, createApiKeyAction,
+    revokeApiKeyAction, deleteAppAction         — Kavita
+    setGrantAction, setSourceAccessAction,
+    revokeAllAction, approveConsentAction,
+    denyConsentAction                           — Meghna
+    runPlaygroundAction                         — Jiveetesh
+
+================================================================================
+   Is vault pe 6 logon ne kaam kiya. 1 ne socha, 6 ne banaya (math sahi hai,
+   lead ne dono kiye). Sab ne bugs fix kiye. Kisi ne memory content log nahi
+   kiya. Sab legends hain. Period.
+================================================================================
